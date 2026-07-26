@@ -1,0 +1,59 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Environments and packaging
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# Notebooks and editors
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.obsidian/
+*.swp
+*.swo
+
+# Interactive language history
+.Rhistory
+
+# OS metadata
+.DS_Store
+
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Generated experiment outputs
+results/**
+!results/README.md
+!results/.gitkeep
+checkpoints/
+wandb/
+mlruns/
+tensorboard/
+
+# Generated data
+data/
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+
+# Logs and temporary files
+*.log
+*.tmp
+.tmp/
