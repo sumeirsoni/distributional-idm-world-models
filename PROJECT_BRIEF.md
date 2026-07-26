@@ -214,6 +214,24 @@ The model needs an objective that is proper for distributions, such as:
 
 The density family and objective must be evaluated together.
 
+### 4.2 Objective comparability and PRISM-style beta-NLL
+
+[PRISM](https://arxiv.org/abs/2606.07974) trains a heteroscedastic diagonal-Gaussian action-sequence head with beta-NLL after freezing its JEPA world model. Its reported objective uses $\beta=0.5$ and an elementwise detached variance weight:
+
+$$
+\mathcal{L}_{\beta\text{-NLL}}
+=
+\operatorname{sg}\left((\sigma^2)^\beta\right)
+\left[
+\frac{(a^\star-\mu)^2}{2\sigma^2}
++\log \sigma
+\right].
+$$
+
+A PRISM-faithful ablation must preserve the detached multiplier, elementwise reduction over normalized actions, $\beta=0.5$, and the documented standard-deviation floor. This is relevant as an optimization and uncertainty-modeling baseline, but it should not be treated as interchangeable with ordinary conditional Gaussian maximum likelihood.
+
+The clean primary unimodal-density baseline for this project should use ordinary conditional Gaussian NLL. The beta-NLL variant should be an explicitly labeled objective ablation. All Gaussian variants should be evaluated with the same held-out ordinary NLL, continuous calibration, sharpness, and action-validity metrics rather than by comparing non-commensurate training losses.
+
 ## 5. Shortcut-resistant conditional-information variant
 
 ### 5.1 Motivation
@@ -294,12 +312,14 @@ The initial recommendation is conservative: begin with option 4 as a metric, the
 The project should increase model complexity only when simpler models establish the phenomenon.
 
 1. **Discretized continuous-action bins with cross-entropy.** Easy to inspect and calibrate; resolution grows poorly with action dimension and introduces binning error.
-2. **Mixture density networks (MDNs).** A practical first continuous baseline with explicit modes; vulnerable to component collapse, variance pathologies, and sensitivity to the number of components.
-3. **Winner-takes-all or best-of-$K$.** A simple multimodal prediction baseline; may cover modes without yielding a normalized calibrated density.
-4. **Conditional normalizing flows.** Exact likelihood for invertible continuous transforms; potentially expressive but more difficult for disconnected or lower-dimensional supports.
-5. **Energy-based models (EBMs).** Flexible unnormalized conditionals; training and Langevin sampling can be expensive or unstable, and likelihood comparison is difficult.
-6. **Conditional diffusion or flow matching over actions.** Flexible sampling for complex conditionals; substantially greater computational and evaluation complexity.
-7. **History-conditioned inverse models.** Model
+2. **Fixed scalar-variance conditional Gaussian.** An equivalence and implementation sanity check: with one fixed isotropic scalar variance, Gaussian NLL is globally scaled MSE plus a constant, so it has the same optimum and gradient direction unless the action support is transformed. A fixed unequal diagonal covariance instead corresponds to dimension-weighted MSE and must be paired with that weighted-MSE control.
+3. **Heteroscedastic diagonal Gaussian.** Predicts both mean and state-dependent variance. This tests whether uncertainty alone is useful before adding multimodal expressivity, but it can cover separated modes by inflating variance and assigning mass to invalid actions.
+4. **Mixture density networks (MDNs).** A practical first continuous baseline with explicit modes; vulnerable to component collapse, variance pathologies, and sensitivity to the number of components.
+5. **Winner-takes-all or best-of-$K$.** A simple multimodal prediction baseline; may cover modes without yielding a normalized calibrated density.
+6. **Conditional normalizing flows.** Exact likelihood for invertible continuous transforms; potentially expressive but more difficult for disconnected or lower-dimensional supports.
+7. **Energy-based models (EBMs).** Flexible unnormalized conditionals; training and Langevin sampling can be expensive or unstable, and likelihood comparison is difficult.
+8. **Conditional diffusion or flow matching over actions.** Flexible sampling for complex conditionals; substantially greater computational and evaluation complexity.
+9. **History-conditioned inverse models.** Model
    $$
    q(a_t\mid z_{t-k:t+1})
    $$
@@ -358,6 +378,24 @@ Do not claim that:
 
 The proposed contribution must be framed and evaluated as the **use of a properly trained distributional IDM as a representation regularizer for world models or JEPA-like systems**, with explicit treatment of action ambiguity, shortcut-resistant variants, controlled benchmarks, and downstream representation outcomes. The exact novelty relative to prior work requires a dedicated literature review using primary sources.
 
+### 7.6 Adjacent work: PRISM
+
+[PRISM: PRior-guided Imagination Sampling in world Models](https://arxiv.org/abs/2606.07974) is relevant adjacent work, but it intervenes at a different stage. PRISM freezes a JEPA world-model encoder and predictor, then trains a small goal-conditioned head that models a diagonal-Gaussian distribution over future action chunks:
+
+$$
+p_\phi(a_{t:t+HB}\mid z_t,z_g).
+$$
+
+At deployment, the learned mean and variance are fused with the proposal distribution of MPPI or CEM to improve candidate sampling. PRISM therefore studies a probabilistic planner proposal on fixed representations. This project studies a transition-conditioned inverse density whose gradients are intended to shape the representation during world-model training:
+
+$$
+q_\phi(a_t\mid z_t,z_{t+1}).
+$$
+
+PRISM narrows broad novelty claims about probabilistic action heads, state-dependent action uncertainty, and uncertainty-aware action sampling in JEPA world models. It does not establish that a distributional inverse objective improves representation learning under action ambiguity.
+
+PRISM also illustrates why planning success is not sufficient evidence of density correctness. Its unimodal Gaussian can assign probability between distinct behavior modes, while MPPI can still recover useful actions by evaluating and refining sampled candidates with the world model. This project must therefore retain direct calibration, mode-coverage, mode-precision, and known-forward cycle metrics in addition to planning outcomes.
+
 ## 8. Falsification-first experimental program
 
 ## Phase 0: controlled synthetic environments
@@ -404,14 +442,19 @@ The minimum comparison set is:
 - displacement-conditioned MSE IDM (Delta-JEPA-style, pending source verification);
 - state-only action predictor $\pi(a\mid z_t)$;
 - categorical/discretized distributional IDM;
+- fixed scalar-variance conditional Gaussian IDM;
+- heteroscedastic diagonal-Gaussian IDM trained with ordinary Gaussian NLL;
+- PRISM-style beta-NLL as an objective ablation for the heteroscedastic Gaussian;
 - MDN distributional IDM;
 - best-of-$K$ or winner-takes-all baseline;
 - history-conditioned IDM;
 - latent distribution regularization such as SIGReg-style coverage (exact method pending source verification);
 - hybrid distributional IDM plus latent coverage regularization;
-- one higher-capacity flow, diffusion, or EBM only after simple models pass the decision gates.
+- frozen-encoder probabilistic-head control to isolate decoder-local gains from representation changes;
+- one higher-capacity flow, diffusion, or EBM only after simple models pass the decision gates;
+- PRISM-style planner proposal only in downstream MPC experiments, not as a Phase 0 substitute for density-quality evaluation.
 
-Where possible, compare decoder capacities and parameter counts to reduce the chance that gains are attributed solely to a larger auxiliary model.
+Where possible, compare decoder capacities and parameter counts to reduce the chance that gains are attributed solely to a larger auxiliary model. Report frozen versus end-to-end encoder training explicitly.
 
 ## 10. Measurements
 
@@ -419,6 +462,7 @@ Where possible, compare decoder capacities and parameter counts to reduce the ch
 
 - Held-out conditional negative log-likelihood when tractable.
 - Calibration appropriate to the action representation.
+- For continuous Gaussian outputs: marginal interval coverage, joint region or action-chunk coverage where applicable, sharpness, and probability-integral-transform or rank calibration when valid.
 - Held-out likelihood improvement over $\pi(a\mid z_t)$.
 - Mode coverage: fraction of valid modes represented.
 - Mode precision: fraction of predicted mass or samples that correspond to valid modes.
@@ -452,9 +496,15 @@ Report this as a metric first. Do not assume a learned forward model is a trustw
 ### 10.4 Downstream utility
 
 - Planning or model-predictive-control performance.
+- Success or return versus planner candidate count.
+- Candidate count and world-model evaluations required to reach a fixed success threshold.
+- Planning wall-clock time, density-head overhead, and memory where materially different.
+- Explicit proposal ablations: vanilla planner; learned-mean warm start with the planner's default variance; product-of-Gaussians fusion with a fitted global prior variance; and product-of-Gaussians fusion with learned state-dependent variance.
 - Policy learning sample efficiency where appropriate.
 - Goal-reaching or trajectory-quality metrics.
 - Robustness and no-regression checks on tasks with an effectively deterministic inverse map.
+
+Planning experiments must separate representation quality from proposal quality. Cross each surviving representation-training objective with vanilla planning and, where practical, a PRISM-style mean-and-variance proposal. A planning gain that appears only with the learned proposal should not be attributed to representation regularization.
 
 ### 10.5 Shortcut diagnostics
 
@@ -469,15 +519,19 @@ Report this as a metric first. Do not assume a learned forward model is a trustw
 At minimum, vary:
 
 - density family;
+- deterministic mean, fixed isotropic scalar variance, learned heteroscedastic variance, and multimodal density;
+- ordinary Gaussian NLL versus PRISM-style beta-NLL for the unimodal Gaussian baseline;
 - number of bins, mixture components, or samples $K$;
 - $\lambda_{\mathrm{IDM}}$ and $\lambda_{\mathrm{coverage}}$;
 - endpoint, displacement-only, state-plus-displacement, and history conditioning;
-- encoder-gradient paths and stop-gradient choices;
+- frozen versus end-to-end heads initialized from the same world-model checkpoint, with encoder, predictor, and other trainable components explicitly held constant or enumerated;
 - state-only baseline capacity, fitting schedule, and freezing strategy;
 - behavior-policy diversity and state-action correlation;
 - observation noise and partial observability;
 - exogenous-state capacity and task relevance;
-- forward-cycle metric using a known versus learned forward model.
+- forward-cycle metric using a known versus learned forward model;
+- vanilla planner, mean-only warm start, and PRISM-style mean-and-variance proposal in downstream planning;
+- planner candidate count, iteration count, covariance rule, and action-prior scale.
 
 ## 12. Decision gates
 
@@ -509,12 +563,13 @@ Add a conditional flow, diffusion model, or EBM—and only then a larger environ
 
 1. Implement deterministic synthetic environment generators with analytically known ambiguity.
 2. Establish fixed train/validation/test data protocols with policy-diversity controls.
-3. Implement deterministic MSE, state-only, discretized, and small MDN baselines.
+3. Implement deterministic MSE, state-only, discretized, fixed scalar-variance Gaussian, heteroscedastic Gaussian, and small MDN baselines.
 4. Implement density, calibration, mode, cycle-consistency, collapse, and probe metrics.
 5. Reproduce Gate 1 before integrating the regularizer into a world model.
-6. Add a minimal predictive encoder/world model and compare no-IDM, deterministic-IDM, distributional-IDM, coverage-only, and hybrid objectives.
+6. Add a minimal predictive encoder/world model and compare no-IDM, deterministic-IDM, distributional-IDM, coverage-only, and hybrid objectives, including a frozen-encoder probabilistic-head control.
 7. Treat the likelihood-ratio/CMI-inspired quantity as an evaluation diagnostic before making it a training objective.
 8. Advance through the remaining decision gates before increasing model or environment complexity.
+9. Add PRISM-style proposal guidance only when downstream MPC experiments begin, and cross it with the surviving representation objectives to isolate planner-side gains.
 
 ## 14. Questions requiring user review before implementation
 
@@ -524,7 +579,8 @@ Add a conditional flow, diffusion model, or EBM—and only then a larger environ
 4. Which broad latent coverage regularizer should represent the SIGReg/LeJEPA-style baseline after source verification?
 5. Should the first CMI-inspired experiment be evaluation-only, frozen-baseline training, or a derived variational bound?
 6. What constitutes the first downstream task: representation probes, planning with known dynamics, or learned-model control?
-7. Which literature claims and named methods should be included after a primary-source review?
+7. Should the learned inverse density remain training-only, or should it also be evaluated as a planner proposal or realizability signal?
+8. Which literature claims and named methods should be included after a primary-source review?
 
 ## 15. Current project boundary
 

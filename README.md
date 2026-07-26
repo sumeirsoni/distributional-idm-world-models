@@ -14,6 +14,8 @@ allowing it to represent multiple compatible actions. The main research question
 
 The project also distinguishes this proposal from broad latent-distribution regularizers: latent coverage objectives discourage collapse, while distributional inverse dynamics specifies action-related representation content. Hybrid objectives are part of the planned comparison.
 
+[PRISM](https://arxiv.org/abs/2606.07974) is relevant adjacent work but addresses a different stage: it trains a probabilistic action-sequence prior on frozen JEPA features and uses the prior to guide MPC sampling. This project instead studies a transition-conditioned inverse density whose gradients regularize the encoder. Later planning experiments will separate representation gains from PRISM-style proposal gains.
+
 ## Current status
 
 > **Planning/scaffold only; awaiting user review.**
@@ -28,7 +30,7 @@ Begin with falsification-first synthetic environments:
 - redundant linear action maps with a nontrivial null space;
 - controlled saturation, partial-observability, history, exogenous-state, and behavior-policy variants.
 
-Simple discretized and mixture-density models should pass explicit decision gates before adding flows, diffusion models, energy-based models, or larger environments.
+Simple discretized, fixed scalar-variance Gaussian, heteroscedastic Gaussian, and mixture-density models should pass explicit decision gates before adding flows, diffusion models, energy-based models, larger environments, or PRISM-style downstream planner guidance.
 
 ## Repository guide
 

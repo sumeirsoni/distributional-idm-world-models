@@ -132,6 +132,21 @@ On tasks with an effectively deterministic inverse map, a simple distributional 
 
 - Persistent degradation in likelihood, representation quality, or downstream performance on ordinary one-to-one dynamics.
 
+### H9 - Representation gains and planner-proposal gains are separable
+
+[PRISM](https://arxiv.org/abs/2606.07974) shows that a learned state-and-goal-conditioned Gaussian action-sequence prior can improve MPPI sampling while the JEPA encoder and world model remain frozen. The proposed project should therefore distinguish improvements caused by representation regularization from improvements caused by a better inference-time action proposal.
+
+**Predictions**
+
+- A PRISM-style proposal can improve planning for more than one representation objective.
+- If distributional-IDM training improves the representation, some gain should remain under vanilla planning without a learned proposal.
+- Crossing representation objectives with vanilla and learned proposals will reveal whether the effects are additive, redundant, or interactive.
+
+**Falsifiers**
+
+- Apparent distributional-IDM planning gains disappear entirely when every representation is evaluated with the same planner proposal.
+- Starting from the same checkpoint and using a matched head, end-to-end distributional-IDM training fails to improve representation probes or vanilla-planner performance over the frozen-encoder control.
+
 ## Secondary research questions
 
 1. Which ambiguity types matter most: finite modes, continuous null spaces, saturation plateaus, policy mixtures, or partial observability?
@@ -144,6 +159,8 @@ On tasks with an effectively deterministic inverse map, a simple distributional 
 8. How much behavior-policy diversity is required to distinguish environment ambiguity from policy artifacts?
 9. Can controllable and exogenous task-relevant state coexist without a hybrid coverage objective?
 10. How sensitive are conclusions to known versus learned forward dynamics used for cycle evaluation?
+11. Are gains caused by changing the representation, by using a learned density as an inference-time proposal, or by their interaction?
+12. When is a learned heteroscedastic Gaussian sufficient, and when is explicit multimodal structure necessary?
 
 ## Novelty boundary
 
@@ -154,6 +171,9 @@ On tasks with an effectively deterministic inverse map, a simple distributional 
 - An evaluation protocol connecting action-density quality to representation content and downstream utility.
 - A carefully controlled conditional-information or held-out likelihood-improvement variant that compares transition-conditioned and state-only action models.
 - Evidence about when distributional IDM and broad latent-coverage objectives are complementary.
+- A controlled separation of representation-training gains from planner-proposal gains.
+
+PRISM is direct adjacent work for probabilistic action heads and uncertainty-aware planning guidance, but not for inverse-density regularization of the encoder. It conditions a diagonal-Gaussian action-chunk prior on current and goal latents after freezing the world model, whereas this project conditions on observed transitions and studies gradients into the representation.
 
 ### Claims not to make
 
@@ -165,6 +185,9 @@ On tasks with an effectively deterministic inverse map, a simple distributional 
 - “Better action likelihood guarantees better representations.”
 - “Displacement-only decoding always prevents shortcuts.”
 - “A naïve difference of trainable log-likelihoods is automatically a mutual-information bound.”
+- “This is the first probabilistic action head attached to a JEPA world model.”
+- “This is the first use of state-dependent action uncertainty to improve world-model planning.”
+- “Planning success proves that the learned action density represents all valid modes.”
 
 ## Open design questions requiring review
 
@@ -178,3 +201,5 @@ On tasks with an effectively deterministic inverse map, a simple distributional 
 8. **Forward verifier:** When may a learned forward model be trusted for cycle metrics?
 9. **Source review:** Which named methods and adjacent inverse-model literature are highest priority for primary-source verification?
 10. **Success threshold:** What minimum downstream gain justifies added density-model complexity?
+11. **Planner role:** Should the inverse density remain training-only, or also serve as a proposal or realizability signal during planning?
+12. **PRISM comparison:** At what phase should vanilla MPPI and PRISM-style proposal guidance be crossed with the surviving representation objectives?
