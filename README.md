@@ -14,13 +14,17 @@ allowing it to represent multiple compatible actions. The main research question
 
 The project also distinguishes this proposal from broad latent-distribution regularizers: latent coverage objectives discourage collapse, while distributional inverse dynamics specifies action-related representation content. Hybrid objectives are part of the planned comparison.
 
-[PRISM](https://arxiv.org/abs/2606.07974) is relevant adjacent work but addresses a different stage: it trains a probabilistic action-sequence prior on frozen JEPA features and uses the prior to guide MPC sampling. This project instead studies a transition-conditioned inverse density whose gradients regularize the encoder. Later planning experiments will separate representation gains from PRISM-style proposal gains.
+[INTACT](https://arxiv.org/abs/2607.26056) is the closest verified precedent for end-to-end action-likelihood supervision. It trains one shared intent-to-action predictor on a local physical intent $z_{t+1}-z_t$ and a detached future-goal intent $\operatorname{sg}(z_g)-z_t$, then supports direct diagonal-Gaussian mean execution with optional local search. The two intent families need not be pointwise equal; their shared interpretation is defined through the conditional action law on supported conditions. INTACT therefore narrows novelty claims about probabilistic action regularization and shared local/goal prediction, but it does not test whether explicitly multimodal densities improve representations or avoid invalid between-mode actions under structural inverse ambiguity.
+
+[PRISM](https://arxiv.org/abs/2606.07974) addresses a different stage: it trains a probabilistic action-sequence prior on frozen JEPA features and uses the prior to guide MPC sampling. This project will treat INTACT-style representation and direct-execution effects separately from PRISM-style planner-proposal effects.
+
+Delta-JEPA trains a displacement-conditioned deterministic inverse objective inside a JEPA world model, and PLDM combines inverse dynamics with VICReg-style regularization. Deterministic IDM regularization is therefore established precedent; the open question is whether the density family matters for representations and downstream control.
 
 ## Current status
 
 > **Planning/scaffold only; awaiting user review.**
 
-No substantive experiments, datasets, dependencies, or training pipelines have been implemented. Named-method and paper-specific claims remain subject to primary-source verification.
+No substantive experiments, datasets, dependencies, or training pipelines have been implemented. The INTACT, PRISM, Delta-JEPA, and LeJEPA/SIGReg descriptions are verified against primary sources. LeWorldModel and PLDM were identified as further adjacent work and require full-text review.
 
 ## Planned first step
 
@@ -30,7 +34,9 @@ Begin with falsification-first synthetic environments:
 - redundant linear action maps with a nontrivial null space;
 - controlled saturation, partial-observability, history, exogenous-state, and behavior-policy variants.
 
-Simple discretized, fixed scalar-variance Gaussian, heteroscedastic Gaussian, and mixture-density models should pass explicit decision gates before adding flows, diffusion models, energy-based models, larger environments, or PRISM-style downstream planner guidance.
+Simple discretized, fixed scalar-variance Gaussian, heteroscedastic Gaussian, and mixture-density models should first pass explicit transition-ambiguity gates and then demonstrate a transition-only representation benefit. Only after that gate will the plan add an INTACT-style shared local/goal Gaussian control, actor-sharing and gradient-routing ablations, support-overlap diagnostics, and actor-disabled planning before considering higher-capacity densities, larger environments, or PRISM-style downstream planner guidance.
+
+The experiment plan defines a decisive core: environments E1 and E10, four IDM arms, frozen versus end-to-end training, and at least five seeds, gated by a pre-registered primary endpoint. All remaining phases are contingent branches. A null representation result is an acceptable terminal outcome with its own deliverable: the environment suite, the metric protocol, and the controlled analysis.
 
 ## Repository guide
 

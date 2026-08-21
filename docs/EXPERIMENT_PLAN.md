@@ -4,7 +4,22 @@
 
 This is a planning document only. No experiments have been implemented.
 
-The program is **falsification-first**: begin with analytically understandable environments and simple density families; advance only when predefined decision gates are passed. Named-method baselines require primary-source verification before their exact implementation is specified.
+The program is **falsification-first**: begin with analytically understandable environments and simple density families; advance only when predefined decision gates are passed. INTACT, PRISM, Delta-JEPA, and LeJEPA/SIGReg specifications are verified against primary sources; LeWorldModel and PLDM require full-text review before exact implementation.
+
+## Pre-registration requirements
+
+Before any Phase 1 run, record the following in `results/preregistration.md`: the primary composite endpoint, the seed count, the equivalence margins, and the multiplicity correction. A phase advances only when its pre-registered endpoint clears the corrected threshold. Secondary metrics generate hypotheses; they never justify advancement on their own.
+
+Recommended defaults, subject to review:
+
+- Primary endpoint: the mean of controllable-state probe accuracy, known-forward cycle validity of sampled actions, and one small planning success rate, each normalized against the no-IDM arm of the same checkpoint.
+- Seeds: at least five per cell; report seed-level intervals.
+- Multiplicity: Holm correction across the pre-declared endpoint components and the cells of the decisive core.
+- Equivalence margin for H8: declare a numeric band before the one-to-one control runs.
+
+## Decisive core
+
+The decisive experiment is Phase 1A restricted to environments E1 and E10, four IDM arms (none, deterministic, heteroscedastic Gaussian, MDN), frozen versus end-to-end encoder training, and the seed count above. Phases 0B through 0C, 1B, 2, 3, 3P, and 4 are contingent branches. Each starts only if the decisive core produces a representation effect worth pursuing or a diagnostic failure that redirects the design. Phase 0A remains an implementation check for generators, metrics, and training loops.
 
 ## Phase overview
 
@@ -13,7 +28,8 @@ The program is **falsification-first**: begin with analytically understandable e
 | 0A | Demonstrate invalid conditional means | Quadratic ambiguity | Endpoint MSE, displacement MSE, state-only, discretized, MDN | Simple density model captures both modes and beats MSE on modal/cycle metrics |
 | 0B | Test continuous action non-identifiability | Rank-deficient linear action map | Same, plus best-of-K | Model represents policy-weighted action sets or samples valid actions |
 | 0C | Separate ambiguity sources | Saturation, partial observability, exogenous state, state-dependent effects, policy variants | Add history and conditioning ablations | Failure signatures match the intended ambiguity mechanism |
-| 1 | Test representation regularization | Minimal predictive encoder/world model on Phase 0 environments | No IDM, deterministic IDM, distributional IDM, coverage-only, hybrid | Representation or downstream gain beyond density fit |
+| 1A | Test transition-only representation regularization | Minimal predictive encoder/world model on Phase 0 environments | No IDM, deterministic IDM, distributional IDM, coverage-only, hybrid | Representation or downstream gain beyond density fit |
+| 1B | Test INTACT-style local/goal sharing and routing | Goal-support and multimodal-junction variants | Local-only, goal-only, shared and independent actors, Gaussian and simple multimodal densities | Sharing, routing, or multimodality adds value beyond behavior cloning and actor capacity |
 | 2 | Test shortcut-resistant objective | Policy-correlated variants | State-only baseline, evaluation ratio, then controlled training variant | Reduced shortcut use without baseline gaming or instability |
 | 3 | Test justified added capacity | Only environments where simple models are limiting | One of flow, diffusion/flow matching, or EBM | Added capacity improves relevant representation/downstream outcomes |
 | 3P | Separate representation and proposal gains | First approved MPC environment | Vanilla planner, mean-only warm start, PRISM-style mean-and-variance proposal crossed with surviving representations | Planner-side and representation-side effects are identifiable |
@@ -33,7 +49,9 @@ The program is **falsification-first**: begin with analytically understandable e
 | E8 | Exogenous dynamic variable | Uncontrollable but predictive state | exogenous strength, encoder capacity | Test controllability gap | IDM-heavy representation drops exogenous factor; coverage/hybrid may retain it |
 | E9 | State-dependent action effect | Inverse depends on state | dynamics family, state distribution | Test conditioning choice | Displacement-only decoder underperforms endpoint/state-plus-delta |
 | E10 | One-to-one inverse control | No intended ambiguity | noise, policy diversity | No-regression benchmark | Distributional method should match deterministic baseline without spurious modes |
-| E11 | Policy shortcut variant | Strong $s$-to-$a$ correlation | policy entropy, mixtures, shifts | Test transition use | Endpoint model predicts well after transition permutation; ratio exposes low added information |
+| E11 | Policy shortcut variant | Strong $s$-to-$a$ correlation | policy entropy, mixtures, shifts, previous-action cues | Test transition and goal use | Endpoint or goal model remains strong after condition shuffling; ratio exposes low added information |
+| E12 | Goal-support overlap continuum | Future goals vary from locally supported to extrapolative | goal horizon, waypoint spacing, local-intent density | Test local-to-goal support claims | Direct performance and calibration degrade as goal intents leave supported regions |
+| E13 | Multimodal goal junction | Same current/goal condition admits distinct valid routes or contacts | route balance, obstacle geometry, behavior mixture | Test goal-conditioned invalid means | Gaussian mean lies between valid modes; mode-aware multimodal execution remains valid |
 
 ## Baseline matrix
 
@@ -52,8 +70,17 @@ The program is **falsification-first**: begin with analytically understandable e
 | Latent coverage regularizer | variance/rank/geometry term | Is broad anti-collapse pressure enough? | Nuisance factors can satisfy it; exact named method pending source review |
 | Hybrid | distributional IDM plus coverage | Are semantic action pressure and broad coverage complementary? | Requires weight and gradient-conflict ablations |
 | Frozen-encoder probabilistic head | same density head with no encoder updates | Are gains decoder-local or representational? | Can improve action prediction without changing representation quality |
-| Higher-capacity density | flow, diffusion/flow matching, or EBM | Are simple-family limitations blocking progress? | Allowed only after Gate 3; fairness and compute are harder |
-| PRISM-style planner proposal | $p(a_{t:t+HB}\mid z_t,z_g)$ fused with MPC proposal | Does a learned inference-time proposal improve planning independently of representation training? | Downstream planning baseline only; not an inverse-density or Phase 0 substitute |
+| Generic auxiliary-task head | equally parameterized head predicting a non-action target such as temporal distance or random features, at matched weight | Does any auxiliary supervision help, independent of action content? | Must match parameter count, weight, and schedule with the IDM arms |
+| INTACT-style local-only Gaussian | $p(a_t\mid z_t,z_{t+1}-z_t,a_{t-1})$ | What does physical inverse likelihood contribute? | No deployment-goal support |
+| INTACT-style goal-only Gaussian | $p(a_t\mid z_t,\operatorname{sg}(z_g)-z_t,a_{t-1})$ | Is performance goal-conditioned behavior cloning? | Can exploit policy, retrieval, or previous-action shortcuts |
+| Fully shared local/goal Gaussian | one diagonal-Gaussian actor for both intent families | Does shared action semantics help? | Unimodal mean can be invalid between modes |
+| Fully shared local/goal MDN | one mixture actor for both intent families | Does explicit multimodality add value within the shared operator? | Component collapse and mode-selection rules require care |
+| Independent local/goal actors | parameter-matched and capacity-control variants | Is sharing useful beyond parameter count? | Input grammar and optimization budgets must match |
+| Alternative sharing topology | condition-token shared or shared trunk with separate outputs | Which parameters actually need to be common? | Partial sharing changes gradient interaction and capacity |
+| Gradient-routing control | goal attached, both targets detached, or encoder frozen | Does asymmetric routing matter? | Must enumerate every latent occurrence and trainable component |
+| Pure CEM on action-supervised checkpoint | execution actor disabled | Did action losses improve the representation or forward model? | Search budget and terminal cost must be matched |
+| Higher-capacity density | flow, diffusion/flow matching, or EBM | Are simple-family limitations blocking progress? | Allowed only after the simple-model gates; fairness and compute are harder |
+| PRISM-style planner proposal | $p(a_{t:t+HB-1}\mid z_t,z_g)$ fused with MPC proposal | Does a learned inference-time proposal improve planning independently of representation training? | Downstream planning baseline only; not an inverse-density or Phase 0 substitute |
 
 ## Conditioning matrix
 
@@ -62,10 +89,13 @@ Every applicable decoder should be compared under:
 1. endpoint: $(z_t,z_{t+1})$;
 2. displacement only: $z_{t+1}-z_t$;
 3. state plus displacement: $(z_t,z_{t+1}-z_t)$;
-4. history: $z_{t-k:t+1}$, where relevant;
-5. state only: $z_t$, as the behavior-policy baseline.
+4. local physical intent: $(z_t,z_{t+1}-z_t,a_{t-1})$, with the physical successor attached by default;
+5. detached future-goal intent: $(z_t,\operatorname{sg}(z_g)-z_t,a_{t-1})$;
+6. paired local/goal calls using an identical input grammar;
+7. history: $z_{t-k:t+1}$, where relevant;
+8. state only: $z_t$, as the behavior-policy baseline.
 
-For each, record parameter count, receptive information, encoder-gradient paths, and any target-encoder stop-gradient.
+Within the paired study, vary previous action as present, absent, or shuffled; compare full future goals with intermediate future waypoints; and record each condition's local/goal support-overlap bucket. A fully shared claim requires the same grammar, trunk, output parameters, density family, and action transform for both calls. For every condition, record parameter count, receptive information, exact encoder-gradient paths, and every stop-gradient occurrence.
 
 ## Metric matrix
 
@@ -91,8 +121,17 @@ For each, record parameter count, receptive information, encoder-gradient paths,
 | Planning | World-model evaluations per success | Computational efficiency of planning | Sensitive to success threshold and environment difficulty |
 | Planning | Wall-clock and proposal-head overhead | Whether sampling gains translate to practical efficiency | Hardware and implementation dependent |
 | Planning | Mean-only warm start versus global-variance and heteroscedastic products | Operational value of learned uncertainty and fusion | Each arm must define its mean, covariance, and fusion rule |
-| Shortcut | Transition permutation degradation | Whether decoder uses next-state information | Permutation distribution must remain meaningful |
+| Shortcut | Transition and goal permutation degradation | Whether the decoder uses the supplied physical or deployment condition | Permutation distribution must remain meaningful |
 | Shortcut | Fixed-state transition sensitivity | Whether conditional changes with transition | Sensitivity alone does not establish correctness |
+| Support | Local-to-goal intent overlap | Whether deployment conditions resemble trained local or demonstrated-goal conditions | Metric choice is representation-dependent and does not prove semantic equivalence |
+| Support | Performance by overlap quantile | Whether success is confined to supported intents | Requires a predeclared overlap estimator |
+| Action law | Agreement on matched local/goal intents | Whether paired conditions induce compatible action densities | Agreement can be wrong if both branches learn a shortcut |
+| Modes | Invalid between-mode mass | Probability assigned away from known valid modes | Requires analytically or operationally defined valid regions |
+| Execution | Mean, mode, and sample validity | Consequence of the action-selection rule | Must not aggregate rules into one score |
+| Representation | Actor-disabled planning delta | Whether action-supervised training improved representation or prediction | Pure-CEM budget and terminal cost must match |
+| Shortcut | Goal and previous-action shuffle degradation | Reliance on goal and short-history inputs | Shuffles can create unrealistic combinations |
+| Shortcut | Episode-disjoint anti-retrieval performance | Whether results survive strict held-out episodes and normalization | Does not rule out all policy memorization |
+| Optimization | Local/goal gradient cosine and shared-parameter fraction | Interaction between paired losses | Cosine is meaningless without reporting which parameters are shared |
 | Robustness | One-to-one no-regression delta | Cost on ordinary inverse dynamics | Must match compute and tuning budgets |
 
 ## Phase 0A: quadratic ambiguity
@@ -120,6 +159,8 @@ For each, record parameter count, receptive information, encoder-gradient paths,
 
 ### Pass criteria
 
+These criteria follow from standard results, so treat this phase as an implementation check whose outputs are working generators, metrics, and training loops.
+
 - MSE exhibits the predicted conditional-mean behavior.
 - At least one simple distributional model represents both valid modes.
 - Density samples improve valid-mode and known-forward cycle metrics.
@@ -137,7 +178,7 @@ For each, record parameter count, receptive information, encoder-gradient paths,
 
 ### Construction
 
-Choose $B\in\mathbb{R}^{d_s\times d_a}$ with $\operatorname{rank}(B)<d_a$. Generate actions from explicitly documented policies that control probability along the null space.
+Choose $B\in\mathbb{R}^{d_s\times d_a}$ with $\operatorname{rank}(B)<d_a$. Generate actions from explicitly documented policies that control probability along the null space. For continuous families, include a constrained parameterization that predicts a minimum-norm solution plus null-space coordinates, so full-dimensional support limitations are not attributed to diagonal-covariance artifacts alone.
 
 ### Required sweeps
 
@@ -181,7 +222,7 @@ Construct dynamics where displacement alone is insufficient. Compare endpoint, d
 
 Vary state-action correlation and evaluate under policy shift. Use state-only likelihood, transition permutation, and fixed-state conditional sensitivity.
 
-## Phase 1: representation regularization
+## Phase 1A: transition-only representation regularization
 
 ### Minimal objective comparison
 
@@ -197,8 +238,13 @@ For the same encoder/world-model backbone, compare:
 8. plus latent coverage regularizer;
 9. plus distributional IDM and latent coverage;
 10. plus history-conditioned IDM where relevant.
+11. plus a generic auxiliary-task head with a non-action target at matched weight.
 
 For each probabilistic head, initialize the frozen and end-to-end arms from the same world-model checkpoint and use identical data, head architecture, initialization protocol, optimizer budget, and evaluation splits. In the frozen control, freeze both encoder and world-model predictor and train only the action head. In the end-to-end arm, enumerate every component that receives gradients. Report the regularizer weights and whether gradients reach online encoder, target encoder, predictor, and action decoder.
+
+### Backbone gradient routing
+
+Specify before coding how IDM gradients enter the minimal backbone: whether the action head reads online or target representations, whether $z_{t+1}$ occurrences receive IDM gradients when the forward predictor detaches targets, and which components each loss updates. Record the same enumeration that Phase 1B requires for INTACT-style routing.
 
 ### Required outcome
 
@@ -209,6 +255,45 @@ A method advances only if it improves at least one representation/downstream tar
 - one-to-one control tasks;
 - training stability;
 - compute relative to the demonstrated benefit.
+
+## Phase 1B: paired local/goal action laws
+
+Run this phase only after a transition-only objective passes the representation gate. Use future observations from episode-disjoint demonstrations as deployment goals and preserve INTACT's default asymmetric route: current state attached, local physical successor attached, and future-goal occurrence detached.
+
+### Staged factorial
+
+Avoid an uncontrolled full Cartesian product. Run four stages:
+
+1. **Action supervision:** none, local only, goal only, and paired local plus goal using a diagonal Gaussian.
+2. **Actor coupling:** fully shared, condition-token shared, shared trunk with separate outputs, parameter-matched independent actors, and an independent-actor capacity control under the best routing.
+3. **Density family:** shared and matched-independent Gaussian versus a discretized or MDN multimodal density, holding the conditioning grammar, action transform, data, optimizer budget, and evaluation splits fixed.
+4. **Execution:** compare Direct mean, mode-aware Direct, calibrated sampling, Guarded/local verification, and Pure CEM on surviving checkpoints.
+
+### Gradient-routing controls
+
+For every run, record gradients to the online/current encoder, local physical-successor occurrence, future-goal occurrence, target encoder, world-model predictor, previous-action encoder, shared trunk, and any branch-specific output. Required controls are:
+
+- physical successor attached and future goal detached;
+- future goal attached;
+- both target endpoints detached;
+- encoder and predictor frozen;
+- local loss only;
+- goal loss only.
+
+A latent detached as a goal in one call may still receive gradients in another role elsewhere. Do not describe this as globally freezing the goal encoder.
+
+### Required outcomes
+
+Advance only if at least one matched claim survives:
+
+- paired local plus goal outperforms goal only;
+- full sharing outperforms parameter-matched independent actors;
+- an action-supervised checkpoint improves probes or Pure-CEM planning with the execution actor disabled;
+- an explicit multimodal density improves valid-mode mass, calibration, cycle validity, or downstream behavior beyond the shared Gaussian.
+
+In every advancing case, support-stratified results must also rule out uncontrolled extrapolation as the explanation.
+
+Direct success alone is insufficient if behavior cloning, actor capacity, episode retrieval, local search, or invalid Gaussian means remain plausible explanations.
 
 ## Phase 2: shortcut-resistant conditional-information study
 
@@ -241,14 +326,26 @@ Select exactly one based on a diagnosed limitation:
 
 Do not add one solely because it is more expressive. Re-run the same metrics and require representation/downstream improvement, not just a better surrogate loss.
 
+## Direct and locally verified intent-to-action execution
+
+Report action-operator execution separately from PRISM-style planner proposals.
+
+1. **Direct mean:** execute the conditional mean with zero sampled candidates and no terminal-cost search.
+2. **Mode-aware Direct:** use one predeclared rule for a multimodal model, either numerical maximization of the full density or a component representative selected by peak density. Report highest-weight-component selection separately because it need not equal the global mixture mode. For a single diagonal Gaussian, mean and mode coincide.
+3. **Direct sample:** draw from the learned density using a fixed sample budget and report both success and invalid-action rates.
+4. **Guarded/local verification:** initialize limited local CEM around the Direct plan, retain the Direct plan as a reference candidate, and return the globally best candidate rather than only the last-iteration result. Report candidate count, iterations, and initial covariance. A paper-faithful INTACT reference is $128\times3$ candidates with initial standard deviation $0.25$, but this is a reference setting rather than a universal default.
+5. **Pure CEM/execution actor disabled:** disable the learned action predictor and search raw actions through the representation and forward model. Match terminal cost, normalization, candidate count, iteration count, and world-model evaluation budget where the comparison requires it.
+
+Broad actor-on CEM is not the same as Guarded execution and must be labeled separately. Also distinguish execution actor disabled from training action objective disabled: the former evaluates an action-supervised checkpoint without its actor, while the latter trains without action-supervision gradients.
+
 ## Downstream planning: representation-proposal factorial
 
-PRISM is a planner-side intervention rather than a representation-training objective. When the project reaches MPC experiments, run the full Cartesian product of every surviving representation checkpoint and every required proposal arm:
+PRISM is a planner-side intervention rather than a representation-training objective. INTACT-style Direct, mode-aware Direct, Guarded, and Pure-CEM arms belong to the action-operator execution block above and must not be inserted as proposal levels in this factorial. When the project reaches MPC experiments, run the full Cartesian product of every surviving representation checkpoint and every required proposal arm:
 
 | Factor | Required levels |
 |---|---|
 | Representation checkpoint | Every surviving objective as a separate checkpoint, including base, latent coverage, each deterministic-IDM variant, each surviving distributional-IDM family, and each surviving hybrid; do not collapse distinct objectives into one level |
-| Proposal arm | Vanilla MPPI, mean-only warm start, global-variance product, and heteroscedastic product |
+| Proposal arm | Vanilla MPPI, mean-only warm start, global-variance product, heteroscedastic product, co-trained actor prior, and optional mixture-prior fusion |
 
 This factor definition, rather than a short illustrative subset of cells, is the required factorial. Any level removed for cost or feasibility must be declared before evaluation and reported as a coverage limitation.
 
@@ -260,6 +357,8 @@ Define proposal arms explicitly:
 2. **Mean-only warm start:** initialize the planner mean from the learned prior mean and retain the planner's default fixed variance.
 3. **Global-variance product:** fuse the learned mean and a fitted global prior variance with the planner Gaussian using the same product-of-Gaussians equations as PRISM.
 4. **Heteroscedastic product:** fuse the learned mean and state-dependent predicted variance with the planner Gaussian.
+5. **Co-trained actor prior:** use the surviving co-trained multimodal action head as the proposal source. This tests the train-inference consistency argument directly against post-hoc priors. It requires goal-intent conditioning, so it applies to Phase 1B checkpoints and inherits support-overlap stratification.
+6. **Mixture-prior fusion, optional:** form the product of the planner Gaussian with each mixture component and reweight components in closed form. Label separately from Gaussian products.
 
 Hold candidate count, planner iterations, latent cost, action normalization, and world-model evaluation budget constant. Run the primary factorial with MPPI, whose fused covariance is fixed during its optimization iterations. Treat CEM, which adaptively refits covariance, as a separate planner-family experiment rather than mixing it into the same cells.
 
@@ -268,6 +367,7 @@ Interpretation rules:
 - gains under vanilla planning are evidence for representation or model improvements rather than proposal guidance;
 - gains shared across all representations under PRISM-style guidance are planner-side gains;
 - an interaction may indicate that the learned proposal benefits more from a particular representation;
+- gains unique to the co-trained actor support the train-inference consistency argument, while gains shared with post-hoc priors are proposal-side;
 - planning success alone does not establish calibrated mode coverage because world-model rescoring can correct an imperfect unimodal proposal.
 
 ## Ablation checklist
@@ -278,6 +378,7 @@ Interpretation rules:
 - fixed isotropic scalar variance versus learned diagonal variance;
 - heteroscedastic Gaussian versus MDN;
 - MDN component count and covariance parameterization;
+- variance floors or clamping during joint encoder training;
 - best-of-K candidate count;
 - selected high-capacity model settings, if reached.
 
@@ -287,7 +388,11 @@ Interpretation rules:
 - distributional-IDM weight;
 - latent-coverage weight;
 - warm-up and update schedule;
+- weight tuning on validation splits only, with sensitivity curves reported;
 - target/online stop-gradient placement;
+- physical-successor attachment, future-goal detachment, joint goal gradients, and both-targets-detached routing;
+- local-only, goal-only, and paired local/goal losses;
+- fully shared, condition-token shared, shared-trunk/separate-output, parameter-matched independent, and independent-capacity actors;
 - frozen-encoder head versus end-to-end encoder regularization;
 - separate versus joint decoder fitting.
 
@@ -296,8 +401,13 @@ Interpretation rules:
 - endpoint;
 - displacement only;
 - state plus displacement;
+- local physical versus detached future-goal intent;
+- full future goal versus intermediate waypoint;
+- previous action present, absent, and shuffled;
+- local/goal support-overlap bucket;
 - history length;
-- masked or permuted next representation.
+- masked or permuted next representation;
+- shuffled future goal.
 
 ### State-only baseline
 
@@ -323,6 +433,17 @@ Interpretation rules:
 - latent coverage objective choice;
 - known versus learned forward cycle evaluation.
 
+### Action-operator execution
+
+- Direct mean versus mode-aware Direct versus calibrated sample;
+- Guarded local verification versus Pure CEM;
+- preservation of the Direct reference candidate;
+- global-best versus last-iteration candidate selection;
+- candidate count, iteration count, and initial covariance;
+- execution actor enabled versus disabled;
+- full goals versus intermediate waypoints;
+- goal shuffle, episode-disjoint splits, and latent line/chord regularization as a negative control.
+
 ### Planner proposal, downstream only
 
 - vanilla MPPI versus mean-only warm start versus global-variance product versus heteroscedastic product;
@@ -334,29 +455,41 @@ Interpretation rules:
 
 ## Decision gates
 
-### Gate 1 — mode capture
+### Gate 1 - implementation sanity check
 
-**Advance if:** deterministic MSE fails as predicted and a simple discretized model or MDN captures valid modes with better calibration and cycle consistency.
+Passing this gate is expected: the predicted MSE behavior and simple-model mode capture follow from standard results. The gate catches optimization, capacity, and metric bugs early; it does not test a scientific hypothesis.
 
-**Stop or redesign if:** the synthetic task does not isolate invalid means, or simple density training is not reliable.
+**Debugging trigger:** the synthetic task does not isolate invalid means, or simple density training is not reliable. Locate and fix the implementation defect before continuing.
 
 ### Gate 2 — representation value
 
-**Advance if:** distributional regularization improves representation probes, prediction, planning, or control—not only action likelihood.
+**Advance if:** the pre-registered primary endpoint improves beyond its multiplicity-corrected threshold and the improvement survives the frozen-head control. Report which competing-mechanism signature appeared, or that neither did.
 
-**Stop or narrow the claim if:** gains remain decoder-local.
+**Stop or narrow the claim if:** gains remain decoder-local, or only secondary metrics move.
 
-### Gate 3 — shortcut resistance
+### Gate 3 - shared operator and execution value
+
+**Advance if:** at least one matched result survives: paired local plus goal beats goal only; full sharing beats parameter-matched independent actors; action-supervised checkpoints improve actor-disabled probes or Pure-CEM planning; or a multimodal density improves valid-mode or downstream outcomes beyond the shared Gaussian. Declare which claim is primary before running the phase; the others become secondary. Support-overlap analysis must rule out uncontrolled goal extrapolation.
+
+**Stop or narrow the claim if:** Direct success is explained by behavior cloning, actor capacity, episode retrieval, local search, or an invalid Gaussian mean.
+
+### Gate 4 - shortcut resistance
 
 **Advance if:** the controlled likelihood-improvement/CMI-inspired design reduces state-policy shortcut use without gaming the baseline or destabilizing training.
 
 **Stop or retain as metric only if:** the training objective is unsound or unstable.
 
-### Gate 4 — added complexity
+### Gate 5 - added density complexity
 
 **Advance if:** a specific failure of bins/MDNs is diagnosed and a higher-capacity family improves the relevant representation or downstream metric.
 
 **Do not advance if:** added capacity only improves its own training surrogate.
+
+### Gate 6 - environment scaling
+
+**Advance if:** the core ambiguity, representation, shortcut, and shared-operator conclusions survive matched controls and can be tested in a larger environment without losing diagnostic visibility. A higher-capacity density is not required if a simple model remains adequate.
+
+**Do not advance if:** scale makes density, representation, actor, and planner effects inseparable.
 
 ## Reporting requirements
 
@@ -374,7 +507,20 @@ Every experimental report should include:
 - applicable downstream results and one-to-one no-regression checks;
 - frozen versus end-to-end encoder setting;
 - random-seed variation and uncertainty intervals;
-- known failure cases and decision-gate outcome.
+- pre-registered primary endpoint value, seed count, and multiplicity correction used for the phase decision;
+- weight-tuning protocol and split provenance;
+- sampling temperature and budget for sample-based cycle metrics, declared before evaluation;
+- known failure cases and decision-gate outcome;
+- local and future-goal endpoint construction;
+- local/goal intent-support statistics and stratified outcomes;
+- previous-action conditioning and shuffle result;
+- exact shared-parameter topology and shared-parameter fraction;
+- gradient destination for every latent occurrence and trainable component;
+- density family, action support transform, and variance constraints;
+- Direct action-selection rule and whether the execution actor is enabled;
+- Guarded reference-candidate, covariance, and global-best rules where applicable;
+- episode-disjoint split and normalization provenance;
+- goal, successor, and previous-action shuffle outcomes.
 
 Reports that include downstream MPC should additionally include:
 
@@ -393,4 +539,12 @@ Reports that include downstream MPC should additionally include:
 - treatment of the likelihood-ratio score as metric or training objective;
 - whether the learned inverse density remains training-only or is also used in planning;
 - phase and environment for the PRISM-style proposal comparison;
-- numerical pass/fail thresholds for each decision gate.
+- full future goals, intermediate waypoints, or both for the first paired operator;
+- whether previous-action conditioning belongs in the first controlled comparison;
+- primary mode-aware Direct rule for multimodal densities;
+- mandatory actor-sharing and gradient-routing controls;
+- diagnostic-only versus gating use of local/goal support overlap;
+- timing of Pure-CEM actor-disabled evaluation;
+- numerical pass/fail thresholds for each decision gate;
+- the pre-registered primary endpoint, seed counts, equivalence margins, and multiplicity correction;
+- the decisive-core scope and the order of contingent branches.
