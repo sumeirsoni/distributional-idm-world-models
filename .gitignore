@@ -40,6 +40,7 @@ dist/
 results/**
 !results/README.md
 !results/.gitkeep
+!results/preregistration.md
 checkpoints/
 wandb/
 mlruns/

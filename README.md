@@ -36,7 +36,7 @@ Begin with falsification-first synthetic environments:
 
 Simple discretized, fixed scalar-variance Gaussian, heteroscedastic Gaussian, and mixture-density models should first pass explicit transition-ambiguity gates and then demonstrate a transition-only representation benefit. Only after that gate will the plan add an INTACT-style shared local/goal Gaussian control, actor-sharing and gradient-routing ablations, support-overlap diagnostics, and actor-disabled planning before considering higher-capacity densities, larger environments, or PRISM-style downstream planner guidance.
 
-The experiment plan defines a decisive core: environments E1 and E10, seven objective arms with frozen-head controls where meaningful, at least five seeds, gated by a pre-registered primary endpoint. All remaining phases are contingent branches. A null representation result is an acceptable terminal outcome with its own deliverable: the environment suite, the metric protocol, and the controlled analysis.
+The experiment plan defines a decisive core: environments E1 and E10, seven objective arms with frozen-head controls where meaningful, three seeds in bring-up extended to five before gate decisions, all governed by a pre-registered primary endpoint. All remaining phases are contingent branches. A null representation result is an acceptable terminal outcome with its own deliverable: the environment suite, the metric protocol, and the controlled analysis.
 
 ## Repository guide
 

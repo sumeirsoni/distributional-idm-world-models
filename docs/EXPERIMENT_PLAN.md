@@ -12,10 +12,11 @@ Before any Phase 1 run, record the following in `results/preregistration.md`: th
 
 Recommended defaults, subject to review:
 
-- Primary endpoint: the mean of controllable-state probe accuracy, known-forward cycle validity of sampled actions, and one small planning success rate under known dynamics, each normalized against the no-IDM arm of the same checkpoint.
-- Seeds: at least five per cell; report seed-level intervals.
+- Primary endpoint: the mean of three components, each measured as standardized improvement over the no-IDM arm of the same seed pairing, (arm minus no-IDM) divided by the pooled seed standard deviation: controllable-state probe accuracy, known-forward cycle validity of sampled actions, and small latent-planning success rate, where latent planning rolls the learned forward predictor forward from encoded observations and scores candidates against encoded goals.
+- Decision test: Holm-corrected paired t-tests across seeds on each component and on the composite mean, requiring corrected p below 0.05 and a standardized effect of at least 0.2, so negligible-but-significant differences do not advance any arm.
+- Seeds: staged. Bring-up and smoke tests run three seeds per configuration. Before any gate decision, extend all eleven configurations to five seeds. The extension rule is pre-registered here, so topping up is not post-hoc cherry-picking.
 - Multiplicity: Holm correction across the pre-declared endpoint components and the cells of the decisive core.
-- Equivalence margin for H8: declare a numeric band before the one-to-one control runs. H8 is the no-regression hypothesis in `RESEARCH_QUESTIONS.md`.
+- Equivalence margin for H8: declare a numeric band before the one-to-one control runs. Proposed band, pending final scale calibration in Phase 0A: within 5 percent relative of the deterministic-IDM arm on held-out NLL and probe accuracy, and within 2 percentage points on latent-planning success. H8 is the no-regression hypothesis in `RESEARCH_QUESTIONS.md`.
 
 ## Decisive core
 
@@ -55,7 +56,7 @@ Match decoder capacity and parameter counts across arms. Deferred baselines - di
 
 Core metrics:
 
-- Endpoint components: controllable-state probes, known-forward cycle validity of sampled actions, and small-planning success rate under known dynamics.
+- Endpoint components: controllable-state probes, known-forward cycle validity of sampled actions, and small latent-planning success rate using the learned forward predictor and encoded goals. A state-space planner with true dynamics is reported as an ungated reference ceiling.
 - Held-out conditional NLL where tractable, and held-out $\mathbb{E}[\log q-\log\pi]$ against the properly fitted state-only baseline.
 - Mode coverage, mode precision, and invalid between-mode mass; E1 modes are analytic.
 - Collapse indicators: per-dimension variance, covariance spectrum, effective rank.
