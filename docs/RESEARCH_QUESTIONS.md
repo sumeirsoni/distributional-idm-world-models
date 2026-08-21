@@ -101,21 +101,9 @@ measures whether transition information improves action prediction beyond state-
 - The result is explained by unequal model capacity or a deliberately degraded baseline.
 - The score is unstable across held-out splits or policy shifts.
 
-### H6 — A carefully designed CMI-inspired training variant reduces shortcuts
+### H6 - A carefully designed CMI-inspired training variant reduces shortcuts
 
-A frozen-baseline, alternating, or explicitly derived variational objective can encourage extra transition information without allowing the baseline to be gamed.
-
-**Predictions**
-
-- Greater transition sensitivity at fixed state.
-- Better held-out likelihood gain over the state-only model.
-- No degradation of the baseline caused solely by adversarial encoder updates.
-
-**Falsifiers**
-
-- Training raises the score by worsening $\pi(a\mid z_t)$.
-- Optimization becomes unstable or damages the base world-model objective.
-- Gains vanish under held-out policy or transition-permutation tests.
+Folded into H5 as a contingent Phase 2 design. The evaluation-only score from H5 comes first; any training variant (frozen baseline, alternating optimization, or a derived variational bound) activates only if the diagnostic reliably detects permutation and policy shortcuts. Its predictions and falsifiers are archived.
 
 ### H7 — History resolves only observational, not structural, ambiguity
 
@@ -169,7 +157,7 @@ $$
 m_t^{\mathrm{goal}}=\operatorname{sg}(z_g)-z_t
 $$
 
-through a shared action law without requiring the two displacements to be pointwise equal. Actor sharing, local-to-goal support overlap, density family, and encoder gradient routing are independent scientific factors.
+through a shared action law without requiring the two displacements to be pointwise equal. Actor sharing, local-to-goal support overlap, density family, and encoder gradient routing are independent scientific factors. This hypothesis activates with contingent Phase 1B, after the transition-only representation gate.
 
 **Predictions**
 
@@ -192,24 +180,14 @@ through a shared action law without requiring the two displacements to be pointw
 
 1. Which ambiguity types matter most: finite modes, continuous null spaces, saturation plateaus, policy mixtures, or partial observability?
 2. When is endpoint conditioning preferable to displacement-only or state-plus-displacement conditioning?
-3. How does action dimensionality affect discretized, MDN, flow, diffusion, and energy-based models?
-4. Does higher action-density capacity improve the encoder or merely absorb ambiguity in the decoder?
-5. Which encoder gradient paths and stop-gradient placements are necessary for stable representation learning?
-6. How should bounded, constrained, or mixed discrete-continuous action spaces be modeled?
-7. Can forward cycle consistency predict downstream utility, or is it only a local validity metric?
-8. How much behavior-policy diversity is required to distinguish environment ambiguity from policy artifacts?
-9. Can controllable and exogenous task-relevant state coexist without a hybrid coverage objective?
-10. How sensitive are conclusions to known versus learned forward dynamics used for cycle evaluation?
-11. Are gains caused by changing the representation, by using a learned action interface, by using a planner proposal, or by their interactions?
-12. When is a learned heteroscedastic Gaussian sufficient, and when is explicit multimodal structure necessary?
-13. When do detached future-goal intents lie within the support of local physical or demonstrated-goal intents?
-14. Does a fully shared local/goal action predictor outperform independent predictors after parameter and capacity matching?
-15. Which latent occurrences should receive encoder gradients in the paired objective?
-16. Does previous-action conditioning resolve legitimate temporal ambiguity or introduce a policy shortcut?
-17. Should the first goal branch use full future goals, intermediate waypoints, or both?
-18. For a multimodal action law, what is the correct search-free execution rule: mean, component mode, calibrated sample, or uncertainty-triggered verification?
-19. Can Guarded local search hide invalid between-mode mass or density-family errors?
-20. How should an INTACT-style action operator be crossed with PRISM-style proposal guidance without conflating representation, actor, and planner effects?
+3. Does higher action-density capacity improve the encoder or merely absorb ambiguity in the decoder?
+4. How much behavior-policy diversity is required to distinguish environment ambiguity from policy artifacts?
+5. Can controllable and exogenous task-relevant state coexist without a hybrid coverage objective?
+6. Are gains caused by changing the representation, by using a learned action interface, by using a planner proposal, or by their interactions?
+7. When is a learned heteroscedastic Gaussian sufficient, and when is explicit multimodal structure necessary?
+8. Can Guarded local search hide invalid between-mode mass or density-family errors?
+
+The remaining secondary questions - dimensionality effects across density families, cycle-consistency as a utility predictor, forward-model sensitivity, actor-sharing comparisons, gradient routing, previous-action conditioning, goal construction, INTACT-PRISM crossing - are archived with their contingent branches.
 
 ## Novelty boundary
 
@@ -255,14 +233,8 @@ INTACT is direct adjacent work for end-to-end action likelihood, shared physical
 5. **CMI-inspired design:** Evaluation-only ratio, frozen baseline, alternating optimization, or explicit variational bound?
 6. **Downstream criterion:** Probes first, planning with known dynamics, or learned-model control?
 7. **Density comparison:** How should normalized-likelihood and implicit/sample-based models be compared fairly?
-8. **Forward verifier:** When may a learned forward model be trusted for cycle metrics?
-9. **Source review:** Which named methods and adjacent inverse-model literature are highest priority for primary-source verification?
-10. **Success threshold:** What minimum downstream gain justifies added density-model complexity?
-11. **Planner role:** Should the inverse density remain training-only, or also serve as a proposal or realizability signal during planning?
-12. **PRISM comparison:** At what phase should vanilla MPPI and PRISM-style proposal guidance be crossed with the surviving representation objectives?
-13. **Goal construction:** Should the first paired operator use full future goals, intermediate waypoints, or both?
-14. **Previous action:** Should $a_{t-1}$ be included in the first controlled INTACT-style baseline?
-15. **Direct execution:** Which mode-aware rule is primary for an MDN or discretized density?
-16. **Actor topology:** Which sharing controls are mandatory before scaling?
-17. **Support gate:** Should local/goal support overlap remain diagnostic or become a numerical advancement criterion?
-18. **Pure CEM timing:** Should actor-disabled planning be evaluated as soon as the paired actor works or only after direct execution passes?
+8. **Success threshold:** What minimum downstream gain justifies added density-model complexity?
+9. **Planner role:** Should the inverse density remain training-only, or also serve as a proposal or realizability signal during planning?
+10. **Support gate:** Should local/goal support overlap remain diagnostic or become a numerical advancement criterion?
+
+The remaining design questions - forward-verifier trust, source-review priorities, PRISM-comparison timing, goal construction, previous-action inclusion, Direct execution rules, actor topology controls, and Pure-CEM timing - are archived; they block contingent branches, not the decisive core.

@@ -253,134 +253,19 @@ The clean primary unimodal-density baseline for this project should use ordinary
 
 ### 4.3 INTACT-style paired local and goal action laws
 
-[INTACT](https://arxiv.org/abs/2607.26056) trains one intent-to-action predictor on two condition families:
-
-$$
-m_t^{\mathrm{local}}=z_{t+1}-z_t,
-\qquad
-m_t^{\mathrm{goal}}=\operatorname{sg}(z_g)-z_t.
-$$
-
-Its shared predictor conditions on the common input grammar
-
-$$
-G_\eta\!\left(z_t,m_t,a_{t-1}\right),
-$$
-
-implemented with current-state, intent, state-intent interaction, and previous-action features. The paired action objective is conceptually
-
-$$
-\lambda_{\mathrm{local}}
-\mathbb{E}\!\left[-\log p_\eta(a_t\mid z_t,m_t^{\mathrm{local}},a_{t-1})\right]
-+
-\lambda_{\mathrm{goal}}
-\mathbb{E}\!\left[-\log p_\eta(a_t\mid z_t,m_t^{\mathrm{goal}},a_{t-1})\right].
-$$
-
-The local and goal displacements are not assumed to be numerically equal or globally aligned. The relevant claim is that supported conditions can share an action-law interpretation. Proper NLL determines behavior only on sampled support, so experiments must measure local-to-goal intent overlap, performance by support-overlap quantile, and degradation on extrapolative goals rather than treating shared parameters as proof of global isomorphism.
-
-The INTACT-style default gradient route is asymmetric:
-
-- gradients flow through the current representation $z_t$;
-- the local physical-successor occurrence $z_{t+1}$ remains attached;
-- the future-goal occurrence $z_g$ is a stop-gradient anchor;
-- the shared action predictor receives both losses;
-- every encoder, target encoder, predictor, previous-action encoder, shared trunk, and branch-specific head must be enumerated if present.
-
-Required routing and coupling controls include joint goal-endpoint gradients, both target endpoints detached, a frozen encoder/action-head-only arm, local-only and goal-only losses, a fully shared actor, a condition-token shared actor, a shared trunk with separate outputs, parameter-matched independent actors, and an independent-actor capacity control. A latent detached as a future goal in one call may still receive gradients when it appears as a current state or physical successor elsewhere.
-
-The transition-only density remains the primary ambiguity probe. The paired local/goal operator is an additional baseline and deployment-aligned extension. Hold its conditioning grammar fixed while comparing a diagonal Gaussian with discretized or mixture-based multimodal densities. Cross operator design and density family independently so a benefit from local/goal sharing is not confused with a benefit from multimodal expressivity.
-
-For execution, report distinct rules rather than one aggregate control score:
-
-1. **Direct mean:** execute the conditional mean with no candidate search.
-2. **Direct mode:** use a predeclared rule for a multimodal model, either numerically maximize the full density or select a component representative by peak density. Do not treat the highest-weight component mean as the global mixture mode. For a single Gaussian, mean and mode coincide.
-3. **Direct sample:** draw a calibrated sample under a fixed sampling budget.
-4. **Guarded/local verification:** preserve the Direct plan as a reference and run limited local search around it, retaining the globally best candidate.
-5. **Pure CEM/execution actor disabled:** remove the action predictor from execution and plan through the learned representation and forward model.
-
-Execution actor disabled and training action objective disabled are different controls. The first tests whether action-supervised training improved the representation or forward model; the second removes action-supervision gradients during training.
+[INTACT](https://arxiv.org/abs/2607.26056) trains one shared predictor on a local physical intent $z_{t+1}-z_t$ and a detached future-goal intent $\operatorname{sg}(z_g)-z_t$, with asymmetric gradient routing: gradients flow through the current representation and the physical-successor occurrence, while the future-goal occurrence is a stop-gradient anchor. The paired operator, its routing controls, its actor-sharing topologies, and its execution rules are deferred to contingent Phase 1B; the full specification is archived. The transition-only density remains the primary ambiguity probe.
 
 ## 5. Shortcut-resistant conditional-information variant
 
-### 5.1 Motivation
-
-A transition-conditioned model can predict actions well without learning useful transition content if the behavior policy already makes actions predictable from the current state. Introduce a state-only baseline:
+A transition-conditioned model can predict actions well without using the transition if the behavior policy makes actions predictable from state alone. Compare $q_\phi(a_t\mid z_t,z_{t+1})$ with a properly fitted state-only baseline $\pi_\psi(a_t\mid z_t)$ through the held-out score
 
 $$
-\pi_\psi(a_t\mid z_t),
+\mathbb{E}\left[\log q_\phi(a_t\mid z_t,z_{t+1})-\log \pi_\psi(a_t\mid z_t)\right],
 $$
 
-and compare it with
+whose population analogue is the conditional mutual information $I(A_t;Z_{t+1}\mid Z_t)$.
 
-$$
-q_\phi(a_t\mid z_t,z_{t+1}).
-$$
-
-For a sample, define the likelihood-ratio-style score
-
-$$
-r_t
-=\log q_\phi(a_t\mid z_t,z_{t+1})
--\log \pi_\psi(a_t\mid z_t).
-$$
-
-In expectation under the true data distribution, the analogous difference between true conditional log densities is related to conditional mutual information:
-
-$$
-I(A_t;Z_{t+1}\mid Z_t)
-=\mathbb{E}\left[
-\log p(a_t\mid z_t,z_{t+1})
--\log p(a_t\mid z_t)
-\right].
-$$
-
-The intended signal is the extra action information supplied by the next representation beyond what is already predictable from the current representation.
-
-### 5.2 Why a naïve trainable difference is unsafe
-
-Simply maximizing
-
-$$
-\log q_\phi(a_t\mid z_t,z_{t+1})-
-\log \pi_\psi(a_t\mid z_t)
-$$
-
-jointly over all parameters is not automatically a valid mutual-information estimator or lower bound. In particular:
-
-- the baseline can be made deliberately worse, artificially increasing the difference;
-- encoder updates can degrade $z_t$ for the baseline rather than improve transition information;
-- density-model misspecification gives different approximation errors to the two terms;
-- unrestricted scaling or poorly normalized energies may make scores incomparable;
-- using the same data for fitting and evaluation can overstate likelihood gains.
-
-### 5.3 Candidate sound designs
-
-At least one of the following should be specified before implementation:
-
-1. **Separate fitting with a frozen baseline.** Fit $\pi_\psi(a\mid z_t)$ to convergence or on alternating phases, then stop gradients through its parameters—and potentially through its encoder input for the ratio regularizer—while optimizing the transition-conditioned improvement.
-2. **Alternating best responses.** Train each density to minimize its own proper held-out or training likelihood, with no incentive for the baseline to become worse, and use a carefully controlled encoder objective.
-3. **Variational conditional-MI bound.** Derive and optimize an explicit bound whose assumptions, negative distribution, and gradient paths are documented.
-4. **Evaluation-only ratio.** Use held-out likelihood improvement over a separately trained state-only baseline as a diagnostic first, without claiming it as the training objective.
-
-The initial recommendation is conservative: begin with option 4 as a metric, then test option 1 or a derived variational design only after the basic distributional IDM succeeds.
-
-### 5.4 Required diagnostics
-
-- Held-out conditional NLL for both $q$ and $\pi$.
-- Improvement $\mathbb{E}[\log q-\log\pi]$ on held-out data.
-- Transition permutation: pair $z_t$ with an incorrect $z_{t+1}$ and measure degradation.
-- Conditioning ablations: remove, mask, or replace $z_{t+1}$ or $\Delta z_t$.
-- Prediction sensitivity to transition changes at fixed $z_t$.
-- Baseline capacity matching and capacity sweeps.
-- Monitoring for degradation of the baseline caused by encoder updates.
-- Comparisons across behavior policies with different state-action correlations and action diversity.
-- Future-goal shuffling and local-successor permutation as separate tests.
-- Previous-action removal and shuffling when $a_{t-1}$ is part of the conditioning grammar.
-- Episode-disjoint splits that exclude evaluation episodes from normalization, optimization, and checkpoint selection.
-- Goal-only behavior-cloning and matched independent-actor controls.
-- Support-stratified evaluation to determine whether goal transfer is confined to near-local intents.
-- Actor-disabled planning to separate representation changes from action-head execution gains.
+Maximizing this difference jointly over all parameters is unsound: the baseline can be made deliberately worse to inflate the score, encoder updates can degrade $z_t$ for the baseline rather than improve transition information, and model misspecification affects the two terms differently. The recommendation is conservative: use the score as an evaluation diagnostic with separately and properly fitted models, and defer any training variant to contingent Phase 2. The required diagnostics - permutation tests, capacity matching, policy shifts, and baseline-degradation monitoring - are archived with the Phase 2 design.
 
 ## 6. Candidate conditional model families
 
@@ -506,69 +391,38 @@ Begin with one-dimensional symmetric actions so $+a$ and $-a$ are observationall
 
 Expected deterministic-MSE failure: prediction between modes, poor forward cycle consistency, and inability to distinguish conditionals sharing a mean.
 
-### B. Redundant linear action map
+### B and C. Deferred ambiguity variants
 
-$$
-s_{t+1}=s_t+B a_t,
-$$
-
-where $B$ has a nontrivial null space. For a displacement $d$, all actions satisfying $Ba=d$ are compatible, yielding an affine set rather than a finite collection of modes.
-
-This tests whether a model can represent continuous ambiguity and whether common density families behave poorly when the valid action distribution lies near a lower-dimensional manifold. The behavior policy determines how probability is distributed along the null space and must be reported. For continuous families, include a constrained parameterization that predicts a minimum-norm solution plus null-space coordinates, so full-dimensional support limitations are not attributed to diagonal-covariance artifacts alone.
-
-### C. Controlled ambiguity variants
-
-1. **Action saturation:** multiple command magnitudes map to the same clipped effect.
-2. **Partial observability:** observations alias distinct latent states; add history to determine whether ambiguity is resolvable.
-3. **Exogenous variables:** include dynamics irrelevant to action prediction but relevant to future prediction or planning.
-4. **State-dependent action effects:** test endpoint, displacement-only, and state-plus-displacement conditioning.
-5. **Behavior-policy diversity:** vary action entropy, state-action correlation, multimodal policy structure, and mixtures of policies.
+Redundant linear maps with a nontrivial null space, action saturation, partial observability with history controls, exogenous variables, state-dependent action effects, and behavior-policy diversity sweeps are deferred to contingent branches; their constructions and expected failure signatures are archived. Two of them activate first because they carry the competing-mechanism signatures: the exogenous-variable environment (E8) tests calibrated acceptance, and the policy-shortcut environment (E11) tests pressure strength.
 
 ## 9. Baselines
 
-The minimum comparison set is:
+The decisive-core comparison set is:
 
+- no IDM;
 - deterministic endpoint-conditioned MSE IDM;
-- displacement-conditioned MSE IDM (Delta-JEPA-style, pending source verification);
-- state-only action predictor $\pi(a\mid z_t)$;
-- categorical/discretized distributional IDM;
-- fixed scalar-variance conditional Gaussian IDM;
-- heteroscedastic diagonal-Gaussian IDM trained with ordinary Gaussian NLL;
-- PRISM-style beta-NLL as an objective ablation for the heteroscedastic Gaussian;
+- heteroscedastic diagonal-Gaussian IDM trained with ordinary NLL;
 - MDN distributional IDM;
-- best-of-$K$ or winner-takes-all baseline;
-- history-conditioned IDM;
-- latent distribution regularization such as SIGReg-style coverage (exact method pending source verification);
+- generic auxiliary-task control: an equally parameterized head predicting a non-action target, such as temporal distance or random features, at matched weight and schedule, to separate auxiliary-supervision effects from action-content effects;
+- latent coverage regularizer (one verified SIGReg-style method);
 - hybrid distributional IDM plus latent coverage regularization;
 - frozen-encoder probabilistic-head control to isolate decoder-local gains from representation changes;
-- generic auxiliary-task control: an equally parameterized head predicting a non-action target, such as temporal distance or random features, at matched weight and schedule, to separate auxiliary-supervision effects from action-content effects;
-- INTACT-style local-only, goal-only, and paired local/goal diagonal-Gaussian actors;
-- fully shared, condition-token shared, shared-trunk/separate-output, parameter-matched independent, and independent-capacity actor controls;
-- paired local/goal MDN or discretized multimodal control after the transition-only ambiguity gate;
-- Pure CEM on action-supervised checkpoints as an execution-actor-disabled representation control;
-- one higher-capacity flow, diffusion, or EBM only after simple models pass the decision gates;
-- PRISM-style planner proposal only in downstream MPC experiments, not as a Phase 0 substitute for density-quality evaluation.
+- state-only action predictor $\pi(a\mid z_t)$.
 
-Where possible, compare decoder capacities and parameter counts to reduce the chance that gains are attributed solely to a larger auxiliary model. Report frozen versus end-to-end encoder training explicitly.
+Match decoder capacities and parameter counts across arms, and report frozen versus end-to-end encoder training explicitly. Deferred baselines - displacement-conditioned MSE, discretized bins, fixed scalar-variance Gaussian, PRISM-style beta-NLL, best-of-K, history conditioning, INTACT-style actor topologies, higher-capacity densities, and planner proposals - are archived and enter only when a gate demands them.
 
 ## 10. Measurements
 
 ### 10.1 Conditional-density quality
 
 - Held-out conditional negative log-likelihood when tractable.
-- Calibration appropriate to the action representation.
-- For continuous Gaussian outputs: marginal interval coverage, joint region or action-chunk coverage where applicable, sharpness, and probability-integral-transform or rank calibration when valid.
 - Held-out likelihood improvement over $\pi(a\mid z_t)$.
 - Mode coverage: fraction of valid modes represented.
 - Mode precision: fraction of predicted mass or samples that correspond to valid modes.
-- Probability-mass calibration across modes.
-- Ability to distinguish conditionals with identical means but different modal structure.
 - Invalid probability mass between known valid modes.
-- Local-to-goal intent support overlap and performance by overlap quantile.
-- Action-law agreement for matched local physical and deployment-goal intents.
-- Validity of Direct mean, Direct mode, and sampled actions reported separately.
+- Ability to distinguish conditionals with identical means but different modal structure.
 
-For models without tractable normalized likelihood, use clearly labeled alternative proper scores or sample-based metrics; do not compare surrogate training losses as if they were commensurate NLLs.
+For models without tractable normalized likelihood, use clearly labeled alternative proper scores or sample-based metrics; do not compare surrogate training losses as if they were commensurate NLLs. Calibration, coverage, sharpness, support-overlap, and action-law metrics are archived until their phases activate.
 
 ### 10.2 Forward cycle consistency
 
@@ -594,55 +448,33 @@ Report this as a metric first. Do not assume a learned forward model is a trustw
 
 ### 10.4 Downstream utility
 
-- Planning or model-predictive-control performance.
+- Planning or model-predictive-control performance on one small task, as an endpoint component.
 - Success or return versus planner candidate count.
-- Candidate count and world-model evaluations required to reach a fixed success threshold.
-- Planning wall-clock time, density-head overhead, and memory where materially different.
-- Explicit proposal ablations: vanilla planner; learned-mean warm start with the planner's default variance; product-of-Gaussians fusion with a fitted global prior variance; and product-of-Gaussians fusion with learned state-dependent variance.
-- Policy learning sample efficiency where appropriate.
-- Goal-reaching or trajectory-quality metrics.
-- Direct mean, mode-aware Direct, calibrated-sample, Guarded/local-verification, and Pure-CEM execution results.
 - Actor-disabled planning delta for the same action-supervised checkpoint.
-- Robustness and no-regression checks on tasks with an effectively deterministic inverse map.
+- Robustness and no-regression checks on E10.
 
-Planning experiments must separate representation quality from action-interface quality and proposal quality. Cross each surviving representation-training objective with vanilla planning and, where practical, a PRISM-style mean-and-variance proposal. A planning gain that appears only with the learned proposal should not be attributed to representation regularization.
+Planning experiments must separate representation quality from action-interface quality and proposal quality. A planning gain that appears only with a learned proposal should not be attributed to representation regularization. The full representation-by-proposal factorial, including co-trained actor and mixture-fusion arms, is archived until MPC experiments begin.
 
 ### 10.5 Shortcut diagnostics
 
 - Conditional versus state-only held-out likelihood.
 - Transition permutation or shuffling tests.
 - Fixed-state transition sensitivity.
-- Conditioning-input ablations.
 - Performance under shifts in the behavior policy.
-- Goal-shuffle and previous-action-shuffle degradation.
-- Episode-disjoint anti-retrieval performance.
-- Performance stratified by local/goal support overlap.
-- Shared-versus-independent actor differences under matched parameter budgets.
 
 ## 11. Ablations
 
-At minimum, vary:
+Core ablations for the decisive experiment:
 
-- density family;
-- deterministic mean, fixed isotropic scalar variance, learned heteroscedastic variance, and multimodal density;
-- ordinary Gaussian NLL versus PRISM-style beta-NLL for the unimodal Gaussian baseline;
-- number of bins, mixture components, or samples $K$;
-- $\lambda_{\mathrm{IDM}}$ and $\lambda_{\mathrm{coverage}}$;
-- endpoint, displacement-only, state-plus-displacement, history, local physical intent, and detached future-goal intent conditioning;
-- local-only, goal-only, and paired local/goal action losses;
-- fully shared, condition-token shared, shared-trunk/separate-output, parameter-matched independent, and independent-capacity actor topologies;
-- physical-successor attachment, future-goal detachment, joint goal gradients, and both-targets-detached routing;
-- previous action present, absent, and shuffled;
-- full future goals versus intermediate future waypoints;
-- Direct mean, Direct mode, Direct sample, Guarded/local verification, and Pure CEM;
-- frozen versus end-to-end heads initialized from the same world-model checkpoint, with encoder, predictor, and other trainable components explicitly held constant or enumerated;
-- state-only baseline capacity, fitting schedule, and freezing strategy;
-- behavior-policy diversity and state-action correlation;
-- observation noise and partial observability;
-- exogenous-state capacity and task relevance;
-- forward-cycle metric using a known versus learned forward model;
-- vanilla planner, mean-only warm start, and PRISM-style mean-and-variance proposal in downstream planning;
-- planner candidate count, iteration count, covariance rule, and action-prior scale.
+- density family: deterministic mean, learned heteroscedastic variance, and multimodal density;
+- $\lambda_{\mathrm{IDM}}$ and $\lambda_{\mathrm{coverage}}$, tuned on validation splits only with sensitivity curves reported;
+- frozen versus end-to-end heads initialized from the same world-model checkpoint, with every gradient-receiving component enumerated;
+- MDN component count, with variance floors or clamping during joint encoder training;
+- behavior-policy diversity and state-action correlation (E11);
+- exogenous-state capacity and task relevance (E8);
+- observation noise.
+
+The extended ablation checklist - conditioning variants, actor topologies, routing, execution rules, planner proposals, and data sweeps - is archived and activates with its contingent branch.
 
 ## 12. Decision gates
 
@@ -684,17 +516,12 @@ Move to a larger controlled environment when the core ambiguity, representation,
 
 ## 13. Recommended initial implementation order after approval
 
-1. Implement deterministic synthetic environment generators with analytically known ambiguity.
-2. Establish fixed train/validation/test data protocols with policy-diversity controls.
-3. Implement deterministic MSE, state-only, discretized, fixed scalar-variance Gaussian, heteroscedastic Gaussian, and small MDN baselines.
-4. Implement density, calibration, mode, cycle-consistency, collapse, and probe metrics.
-5. Reproduce Gate 1 before integrating the regularizer into a world model.
-6. Add a minimal predictive encoder/world model and compare no-IDM, deterministic-IDM, distributional-IDM, coverage-only, and hybrid objectives, including a frozen-encoder probabilistic-head control.
-7. After the transition-only representation gate, add INTACT-style local-only, goal-only, and paired local/goal Gaussian controls with explicit gradient routing and actor-sharing ablations.
-8. Cross the best paired operator with a simple multimodal density, then compare mean, mode, sample, Guarded, and Pure-CEM execution while retaining actor-disabled representation tests.
-9. Treat the likelihood-ratio/CMI-inspired quantity as an evaluation diagnostic before making it a training objective.
-10. Advance through the remaining decision gates before increasing model or environment complexity.
-11. Add PRISM-style proposal guidance only when downstream MPC experiments begin, and cross it with the surviving representation objectives to isolate planner-side gains.
+1. Implement E1 and E10 generators with analytically known ambiguity, and fix train/validation/test protocols with policy-diversity controls.
+2. Implement the core baselines and the density, mode, cycle-consistency, collapse, probe, and shortcut metrics.
+3. Pass the Phase 0A implementation check.
+4. Run the decisive core (Phase 1A) under the pre-registered endpoint.
+5. Interpret the competing-mechanism signatures; advance through the gates, redirect the design, or accept the null-result deliverable.
+6. Activate contingent branches only as their gates open; add PRISM-style proposal guidance only when downstream MPC experiments begin.
 
 ## 14. Questions requiring user review before implementation
 
@@ -702,30 +529,20 @@ Move to a larger controlled environment when the core ambiguity, representation,
    - **Recommended default:** A minimal online/target predictive encoder that preserves the essential JEPA gradient structure without introducing benchmark-scale architectural complexity.
 2. Should Phase 0 begin with purely generated datasets, online rollouts, or both?
    - **Recommended default:** Begin with fixed generated datasets for reproducibility and exact control of conditional action laws. Add online rollouts only after the core invalid-mean and mode-capture results are stable.
-3. What action dimensionality is sufficient for the first redundant-map experiment?
-   - **Recommended default:** Start with $d_a=2$, $d_s=1$, rank $1$, and nullity $1$ so the compatible action set is directly visualizable. Follow with a higher-dimensional rank/nullity sweep after the basic case passes.
-4. Which broad latent coverage regularizer should represent the SIGReg/LeJEPA-style baseline after source verification?
+3. Which broad latent coverage regularizer should represent the SIGReg/LeJEPA-style baseline?
    - **Recommended default:** Use one verified, simple variance/covariance or spectral anti-collapse regularizer. Avoid combining multiple coverage mechanisms in the first comparison.
-5. Should the first CMI-inspired experiment be evaluation-only, frozen-baseline training, or a derived variational bound?
+4. Should the first CMI-inspired experiment be evaluation-only, frozen-baseline training, or a derived variational bound?
    - **Recommended default:** Begin with an evaluation-only held-out likelihood difference between separately and properly fitted transition-conditioned and state-only models. Test frozen or alternating training only if the diagnostic reliably detects permutation and policy shortcuts.
-6. What constitutes the first downstream task: representation probes, planning with known dynamics, or learned-model control?
+5. What constitutes the first downstream task: representation probes, planning with known dynamics, or learned-model control?
    - **Recommended default:** Use a staged ladder: frozen representation probes first, planning with known dynamics second, and learned-model control only after the simpler evaluations show a benefit.
-7. Should the learned inverse density remain training-only, or should it also be evaluated as a planner proposal or realizability signal?
+6. Should the learned inverse density remain training-only, or should it also be evaluated as a planner proposal or realizability signal?
    - **Recommended default:** Establish the training-only representation effect first. Evaluate Direct execution, realizability filtering, and planner-proposal use later as separately labeled interventions.
-8. Should the first paired local/goal operator use full future goals, intermediate waypoints, or both?
-   - **Recommended default:** Use controlled temporal offsets that include one-step or short waypoints and full future goals. Report results separately by goal horizon and support-overlap quantile.
-9. Should previous-action conditioning be included in the first controlled INTACT-style comparison?
-   - **Recommended default:** Make the model without $a_{t-1}$ the primary controlled condition. Include present, absent, shuffled, and previous-action-only variants to distinguish legitimate temporal information from policy persistence.
-10. Which mode-aware Direct rule should be primary for an MDN or discretized density?
-    - **Recommended default:** Use a predeclared deterministic mode-aware rule: the highest-probability bin for a discretized model and either the numerical mixture mode or a component representative selected by peak density for an MDN. Report the conditional mean, calibrated sampling, and limited forward verification as separate arms.
-11. Which actor-sharing and gradient-routing variants are mandatory before scaling?
-    - **Recommended default:** Require the fully shared default route, local-only, goal-only, parameter-matched independent actors, an independent-capacity control, future-goal-attached routing, both-targets-detached routing, and a frozen encoder/predictor head-only control. Add partial-sharing variants if fully shared and independent actors differ meaningfully.
-12. Should local/goal support overlap be a diagnostic only or a decision-gate threshold?
-    - **Recommended default:** Initially require support-overlap stratification rather than a single hard threshold. Any advancing result must report performance by overlap quantile, goal horizon, demonstrated versus recombined goals, and an explicitly extrapolative split.
-13. Which literature claims and named methods should be included after a primary-source review?
-    - **Recommended default:** Prioritize the latent-coverage baseline, deterministic displacement-conditioned IDM, multimodal inverse-dynamics and action-conditioned representation work, and goal-conditioned or hindsight behavior-cloning precedents. Review higher-capacity action densities only after a simple density family reaches a diagnosed limitation.
-14. Which pre-registered primary endpoint, seed count, and equivalence margins should govern phase advancement?
-    - **Recommended default:** Adopt the decisive-core endpoint defined in the experiment plan unless review changes it.
+7. Which pre-registered primary endpoint, seed count, and equivalence margins should govern phase advancement?
+   - **Recommended default:** Adopt the decisive-core endpoint defined in the experiment plan unless review changes it.
+8. In what order should contingent branches activate after the decisive core?
+   - **Recommended default:** E8 and E11 first, because they carry the mechanism signatures; then Phase 1B, Phase 2, Phase 3, Phase 3P, and Phase 4 in gate order.
+
+Questions about redundant-map dimensionality, paired-operator goal construction, previous-action conditioning, mode-aware Direct rules, actor-sharing controls, support-overlap gating, and literature-review priorities are archived with their recommended defaults; they block their contingent branches, not the decisive core.
 
 ## Acceptable outcomes including null results
 

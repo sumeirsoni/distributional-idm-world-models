@@ -42,7 +42,8 @@ The experiment plan defines a decisive core: environments E1 and E10, four IDM a
 
 - [`PROJECT_BRIEF.md`](PROJECT_BRIEF.md): self-contained research handoff and scope.
 - [`docs/RESEARCH_QUESTIONS.md`](docs/RESEARCH_QUESTIONS.md): hypotheses, falsifiers, novelty boundary, and unresolved questions.
-- [`docs/EXPERIMENT_PLAN.md`](docs/EXPERIMENT_PLAN.md): phased experiment matrix, metrics, ablations, decision gates, and expected failure signatures.
+- [`docs/EXPERIMENT_PLAN.md`](docs/EXPERIMENT_PLAN.md): pre-registration protocol, decisive-core experiment, contingent branches, decision gates, and reporting requirements.
+- [`docs/ARCHIVE.md`](docs/ARCHIVE.md): deferred environments, baselines, metrics, and phase designs, with verbatim text preserved at commit `8498e45`.
 - `src/distributional_idm/`: placeholder package structure only.
 - `tests/`, `configs/`, `scripts/`, `results/`: placeholders for future approved work.
 
