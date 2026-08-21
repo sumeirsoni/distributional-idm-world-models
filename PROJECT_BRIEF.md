@@ -534,11 +534,11 @@ Questions 1 through 5 block the start of implementation. Questions 6 through 8 b
 2. Where does the training data come from?
    - **Recommended default:** Generate fixed datasets up front. That keeps runs reproducible and pins the conditional action laws exactly. Record dataset size, episode structure, and behavior-policy draws in `results/preregistration.md` before training. Add online rollouts later, only after the core results are stable.
 3. Which regularizer plays the SIGReg/LeJEPA coverage role?
-   - **Recommended default:** VICReg's variance plus covariance terms. They are simple, and they keep pushing while embeddings are nearly collapsed. SIGReg would match LeWM, but its test statistic loses gradient as embeddings approach collapse, and near-collapse is exactly where this arm has to work. Use one, not both.
+   - **Recommended default:** VICReg's variance plus covariance terms. They are the most battle-tested anti-collapse recipe, and they keep pushing while embeddings are nearly collapsed. SIGReg would match LeWM, but its test statistic loses gradient as embeddings approach collapse, and near-collapse is exactly where this arm has to work. [VISReg](https://arxiv.org/abs/2606.02572) fixes that weakness, but it is a months-old, unreplicated preprint that has not been tried on world-model latents, and a control should be boring. Use VICReg terms by default; if the no-IDM arm collapses heavily and the coverage arms fail to recover it, rerun the comparison once with VISReg as a robustness check.
 4. Who owns the endpoint numbers, and what will compute cost?
    - **Recommended default:** The experiment plan states the endpoint, seed count, equivalence margins, and multiplicity correction. Review them there, once. Compute costs about 70 runs across the decisive core, from seven arms times two training modes times five seeds. Frozen-head runs are cheap; end-to-end arms dominate the bill.
-5. Does the staged ladder conflict with the composite endpoint?
-   - **Recommended default:** Not if the planning component uses known dynamics. The decisive core then computes all three endpoint parts at once. Probes still get reported first, and learned-model control stays outside the endpoint until simpler evaluations show a benefit.
+5. When do planning results enter the evaluation?
+   - **Recommended default:** The endpoint has three parts: probe accuracy, cycle validity, and planning success under known dynamics. Collect all three in the same pass, since the endpoint cannot be computed otherwise. Read the probes first when analyzing results. Learned-model control, meaning planning through the trained model itself rather than through known dynamics, stays outside the endpoint until the simpler evaluations show a benefit.
 
 ### Needed at branch activation
 
