@@ -15,11 +15,11 @@ Recommended defaults, subject to review:
 - Primary endpoint: the mean of controllable-state probe accuracy, known-forward cycle validity of sampled actions, and one small planning success rate under known dynamics, each normalized against the no-IDM arm of the same checkpoint.
 - Seeds: at least five per cell; report seed-level intervals.
 - Multiplicity: Holm correction across the pre-declared endpoint components and the cells of the decisive core.
-- Equivalence margin for H8: declare a numeric band before the one-to-one control runs.
+- Equivalence margin for H8: declare a numeric band before the one-to-one control runs. H8 is the no-regression hypothesis in `RESEARCH_QUESTIONS.md`.
 
 ## Decisive core
 
-The decisive experiment is Phase 1A restricted to environments E1 and E10, four IDM arms (none, deterministic, heteroscedastic Gaussian, MDN), frozen versus end-to-end encoder training, and the seed count above. Phases 0B through 0C, 1B, 2, 3, 3P, and 4 are contingent branches. Each starts only if the decisive core produces a representation effect worth pursuing or a diagnostic failure that redirects the design. Phase 0A remains an implementation check for generators, metrics, and training loops.
+The decisive experiment is Phase 1A restricted to environments E1 and E10, with seven arms (world model only; deterministic IDM; heteroscedastic Gaussian IDM; MDN; generic auxiliary task; latent coverage; hybrid) and frozen-head variants for the four action-head arms, at the seed count above. Phases 0B through 0C, 1B, 2, 3, 3P, and 4 are contingent branches. Each starts only if the decisive core produces a representation effect worth pursuing or a diagnostic failure that redirects the design. Phase 0A remains an implementation check for generators, metrics, and training loops.
 
 ## Environments
 
@@ -44,7 +44,7 @@ Decisive-core set:
 3. heteroscedastic diagonal-Gaussian IDM trained with ordinary NLL;
 4. MDN distributional IDM;
 5. generic auxiliary-task head predicting a non-action target at matched weight;
-6. latent coverage regularizer (one verified SIGReg-style method);
+6. latent coverage regularizer (VICReg-style variance plus covariance terms by default; see section 14 of the brief);
 7. hybrid distributional IDM plus coverage;
 8. frozen-encoder probabilistic head;
 9. state-only predictor $\pi(a_t\mid z_t)$.
@@ -55,7 +55,7 @@ Match decoder capacity and parameter counts across arms. Deferred baselines - di
 
 Core metrics:
 
-- Endpoint components: controllable-state probes, known-forward cycle validity of sampled actions, and small-planning success rate.
+- Endpoint components: controllable-state probes, known-forward cycle validity of sampled actions, and small-planning success rate under known dynamics.
 - Held-out conditional NLL where tractable, and held-out $\mathbb{E}[\log q-\log\pi]$ against the properly fitted state-only baseline.
 - Mode coverage, mode precision, and invalid between-mode mass; E1 modes are analytic.
 - Collapse indicators: per-dimension variance, covariance spectrum, effective rank.
@@ -109,7 +109,7 @@ For the same encoder/world-model backbone on E1 and E10:
 6. plus latent coverage regularizer;
 7. plus distributional IDM and coverage.
 
-Each arm runs frozen-head and end-to-end variants. Initialize both from the same world-model checkpoint and use identical data, head architecture, initialization protocol, optimizer budget, and evaluation splits. In the frozen control, freeze encoder and predictor and train only the action head. In the end-to-end arm, enumerate every component that receives gradients. Tune weights on validation splits only and report sensitivity curves.
+Each arm runs end-to-end. Arms 2 through 5 additionally run a frozen-head variant: initialize from the same world-model checkpoint, freeze encoder and predictor, and train only the action head. The coverage and hybrid arms have no meaningful frozen variant, because their regularizers act on encoder gradients. Use identical data, head architecture, initialization protocol, optimizer budget, and evaluation splits across variants. In every end-to-end arm, enumerate every component that receives gradients. Tune weights on validation splits only and report sensitivity curves.
 
 ### Backbone gradient routing
 
@@ -147,6 +147,8 @@ Passing this gate is expected: the predicted MSE behavior and simple-model mode 
 **Stop or narrow the claim if:** gains remain decoder-local, or only secondary metrics move.
 
 ### Gate 3 - shared operator and execution value
+
+Gate 3 governs contingent Phase 1B. The archive defines Direct execution, Pure CEM, the actor topologies, and support-overlap analysis referenced here.
 
 **Advance if:** at least one matched result survives: paired local plus goal beats goal only; full sharing beats parameter-matched independent actors; action-supervised checkpoints improve actor-disabled probes or Pure-CEM planning; or a multimodal density improves valid-mode or downstream outcomes beyond the shared Gaussian. Declare which claim is primary before running the phase; the others become secondary. Support-overlap analysis must rule out uncontrolled goal extrapolation.
 

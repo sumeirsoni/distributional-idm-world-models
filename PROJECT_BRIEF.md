@@ -178,7 +178,7 @@ $$
 
 and the same action can produce different displacements in different states, or the same displacement can require different actions. Removing $z_t$ may therefore make inverse prediction ill-posed. Endpoint, displacement-only, and state-plus-displacement conditioning should be compared empirically rather than assuming one is universally preferable.
 
-The name and exact formulation of “Delta-JEPA,” along with claims about its motivation or empirical performance, require primary-source verification.
+[Delta-JEPA](https://arxiv.org/abs/2606.31232) trains an end-to-end latent world model whose Latent Difference Action Decoder reconstructs the executed action from the latent displacement $z_{t+1}-z_t$ rather than from endpoint concatenation, and reports displacement-based decoding outperforming endpoint concatenation across visual continuous-control tasks. Its action objective is deterministic MSE, so it precedes this project's question without answering it.
 
 ## 4. Primary proposed objective
 
@@ -404,7 +404,7 @@ The decisive-core comparison set is:
 - heteroscedastic diagonal-Gaussian IDM trained with ordinary NLL;
 - MDN distributional IDM;
 - generic auxiliary-task control: an equally parameterized head predicting a non-action target, such as temporal distance or random features, at matched weight and schedule, to separate auxiliary-supervision effects from action-content effects;
-- latent coverage regularizer (one verified SIGReg-style method);
+- latent coverage regularizer: VICReg-style variance plus covariance terms by default, with the SIGReg and VISReg alternatives discussed in section 14;
 - hybrid distributional IDM plus latent coverage regularization;
 - frozen-encoder probabilistic-head control to isolate decoder-local gains from representation changes;
 - state-only action predictor $\pi(a\mid z_t)$.
@@ -536,7 +536,7 @@ Questions 1 through 5 block the start of implementation. Questions 6 through 8 b
 3. Which regularizer plays the SIGReg/LeJEPA coverage role?
    - **Recommended default:** VICReg's variance plus covariance terms. They are the most battle-tested anti-collapse recipe, and they keep pushing while embeddings are nearly collapsed. SIGReg would match LeWM, but its test statistic loses gradient as embeddings approach collapse, and near-collapse is exactly where this arm has to work. [VISReg](https://arxiv.org/abs/2606.02572) fixes that weakness, but it is a months-old, unreplicated preprint that has not been tried on world-model latents, and a control should be boring. Use VICReg terms by default; if the no-IDM arm collapses heavily and the coverage arms fail to recover it, rerun the comparison once with VISReg as a robustness check.
 4. Who owns the endpoint numbers, and what will compute cost?
-   - **Recommended default:** The experiment plan states the endpoint, seed count, equivalence margins, and multiplicity correction. Review them there, once. Compute costs about 70 runs across the decisive core, from seven arms times two training modes times five seeds. Frozen-head runs are cheap; end-to-end arms dominate the bill.
+   - **Recommended default:** The experiment plan states the endpoint, seed count, equivalence margins, and multiplicity correction. Review them there, once. Compute costs about 55 runs across the decisive core: seven end-to-end arms plus four meaningful frozen-head variants (deterministic, Gaussian, MDN, auxiliary task), five seeds each. End-to-end arms dominate the bill.
 5. When do planning results enter the evaluation?
    - **Recommended default:** The endpoint has three parts: probe accuracy, cycle validity, and planning success under known dynamics. Collect all three in the same pass, since the endpoint cannot be computed otherwise. Read the probes first when analyzing results. Learned-model control, meaning planning through the trained model itself rather than through known dynamics, stays outside the endpoint until the simpler evaluations show a benefit.
 

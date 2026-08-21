@@ -44,7 +44,7 @@ A discretized categorical model or mixture density network captures multiple val
 
 ### H3 - Expressive density support adds representation value beyond unimodal action NLL
 
-When the inverse map has separated modes, an explicitly multimodal density should retain more useful controllable structure than deterministic IDM or an INTACT-style diagonal Gaussian. When compatible actions instead lie on a connected lower-dimensional set, the relevant extension is support-aware or manifold-capable density modeling rather than multimodality by itself. Both comparisons must also include goal-only behavior cloning and a frozen probabilistic head.
+When the inverse map has separated modes, an explicitly multimodal density should retain more useful controllable structure than deterministic IDM or a unimodal Gaussian control. When compatible actions instead lie on a connected lower-dimensional set, the relevant extension is support-aware or manifold-capable density modeling rather than multimodality by itself. Both comparisons must include a frozen probabilistic head; goal-only behavior cloning joins in the paired-operator branch.
 
 **Predictions**
 
