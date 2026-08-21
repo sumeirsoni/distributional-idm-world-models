@@ -529,16 +529,16 @@ Questions 1 through 5 block the start of implementation. Questions 6 through 8 b
 
 ### Blocking
 
-1. Observation space and backbone architecture for E1 and E10?
-   - **Recommended default:** State-vector observations with a small MLP online/target encoder that preserves the JEPA gradient structure without benchmark-scale complexity. Keep the backbone weak enough that the no-IDM arm can collapse: a constant latent with a compensating predictor satisfies the forward loss, and exposing that failure gives Gate 2 something to detect. The generic auxiliary-task arm then attributes any prevention to action content rather than to supervision alone.
-2. Data protocol?
-   - **Recommended default:** Fixed generated datasets for reproducibility and exact control of conditional action laws. Freeze dataset size, episode structure, and behavior-policy draws in `results/preregistration.md`. Add online rollouts only after the core results are stable.
-3. Which latent coverage regularizer represents the SIGReg/LeJEPA-style baseline?
-   - **Recommended default:** VICReg-style variance plus covariance terms. They are simple, and their gradients stay informative under near-collapse. SIGReg matches LeWM fidelity, but its test statistic loses gradient as embeddings approach collapse, which is exactly the regime this arm studies. Pick one mechanism; do not combine them.
-4. Endpoint, seeds, equivalence margins, and compute budget?
-   - **Recommended default:** The experiment plan owns these numbers; approve or amend them there in one pass. Budget reference: the decisive core is roughly 70 runs (seven arms times frozen and end-to-end variants times five seeds), dominated by the end-to-end arms.
-5. How does the downstream ladder reconcile with the composite endpoint?
-   - **Recommended default:** The endpoint's planning component uses planning with known dynamics from the start, so the decisive core computes its full endpoint in one pass. Probes come first in analysis order, and learned-model control stays outside the endpoint entirely, entering only after simpler evaluations show a benefit.
+1. What do the E1 and E10 observations look like, and which encoder reads them?
+   - **Recommended default:** Plain state vectors, read by a small MLP online/target encoder. Skip benchmark architectures; they add cost without changing the question. Keep the encoder weak on purpose. A constant latent with a compensating predictor already satisfies the forward loss, so the no-IDM arm can collapse, and Gate 2 needs that failure to exist. If the IDM arms prevent the collapse while the generic auxiliary-task arm does not, the cause is action content rather than extra supervision.
+2. Where does the training data come from?
+   - **Recommended default:** Generate fixed datasets up front. That keeps runs reproducible and pins the conditional action laws exactly. Record dataset size, episode structure, and behavior-policy draws in `results/preregistration.md` before training. Add online rollouts later, only after the core results are stable.
+3. Which regularizer plays the SIGReg/LeJEPA coverage role?
+   - **Recommended default:** VICReg's variance plus covariance terms. They are simple, and they keep pushing while embeddings are nearly collapsed. SIGReg would match LeWM, but its test statistic loses gradient as embeddings approach collapse, and near-collapse is exactly where this arm has to work. Use one, not both.
+4. Who owns the endpoint numbers, and what will compute cost?
+   - **Recommended default:** The experiment plan states the endpoint, seed count, equivalence margins, and multiplicity correction. Review them there, once. Compute costs about 70 runs across the decisive core, from seven arms times two training modes times five seeds. Frozen-head runs are cheap; end-to-end arms dominate the bill.
+5. Does the staged ladder conflict with the composite endpoint?
+   - **Recommended default:** Not if the planning component uses known dynamics. The decisive core then computes all three endpoint parts at once. Probes still get reported first, and learned-model control stays outside the endpoint until simpler evaluations show a benefit.
 
 ### Needed at branch activation
 
