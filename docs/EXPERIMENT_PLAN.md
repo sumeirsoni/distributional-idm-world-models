@@ -12,7 +12,7 @@ Before any Phase 1 run, record the following in `results/preregistration.md`: th
 
 Recommended defaults, subject to review:
 
-- Primary endpoint: the mean of controllable-state probe accuracy, known-forward cycle validity of sampled actions, and one small planning success rate, each normalized against the no-IDM arm of the same checkpoint.
+- Primary endpoint: the mean of controllable-state probe accuracy, known-forward cycle validity of sampled actions, and one small planning success rate under known dynamics, each normalized against the no-IDM arm of the same checkpoint.
 - Seeds: at least five per cell; report seed-level intervals.
 - Multiplicity: Holm correction across the pre-declared endpoint components and the cells of the decisive core.
 - Equivalence margin for H8: declare a numeric band before the one-to-one control runs.

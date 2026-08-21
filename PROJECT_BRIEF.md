@@ -525,24 +525,31 @@ Move to a larger controlled environment when the core ambiguity, representation,
 
 ## 14. Questions requiring user review before implementation
 
-1. Which base world-model or JEPA-like architecture should be the first integration target?
-   - **Recommended default:** A minimal online/target predictive encoder that preserves the essential JEPA gradient structure without introducing benchmark-scale architectural complexity.
-2. Should Phase 0 begin with purely generated datasets, online rollouts, or both?
-   - **Recommended default:** Begin with fixed generated datasets for reproducibility and exact control of conditional action laws. Add online rollouts only after the core invalid-mean and mode-capture results are stable.
-3. Which broad latent coverage regularizer should represent the SIGReg/LeJEPA-style baseline?
-   - **Recommended default:** Use one verified, simple variance/covariance or spectral anti-collapse regularizer. Avoid combining multiple coverage mechanisms in the first comparison.
-4. Should the first CMI-inspired experiment be evaluation-only, frozen-baseline training, or a derived variational bound?
-   - **Recommended default:** Begin with an evaluation-only held-out likelihood difference between separately and properly fitted transition-conditioned and state-only models. Test frozen or alternating training only if the diagnostic reliably detects permutation and policy shortcuts.
-5. What constitutes the first downstream task: representation probes, planning with known dynamics, or learned-model control?
-   - **Recommended default:** Use a staged ladder: frozen representation probes first, planning with known dynamics second, and learned-model control only after the simpler evaluations show a benefit.
-6. Should the learned inverse density remain training-only, or should it also be evaluated as a planner proposal or realizability signal?
-   - **Recommended default:** Establish the training-only representation effect first. Evaluate Direct execution, realizability filtering, and planner-proposal use later as separately labeled interventions.
-7. Which pre-registered primary endpoint, seed count, and equivalence margins should govern phase advancement?
-   - **Recommended default:** Adopt the decisive-core endpoint defined in the experiment plan unless review changes it.
+Questions 1 through 5 block the start of implementation. Questions 6 through 8 block only contingent branches; answer them at branch activation.
+
+### Blocking
+
+1. Observation space and backbone architecture for E1 and E10?
+   - **Recommended default:** State-vector observations with a small MLP online/target encoder that preserves the JEPA gradient structure without benchmark-scale complexity. Keep the backbone weak enough that the no-IDM arm can collapse: a constant latent with a compensating predictor satisfies the forward loss, and exposing that failure gives Gate 2 something to detect. The generic auxiliary-task arm then attributes any prevention to action content rather than to supervision alone.
+2. Data protocol?
+   - **Recommended default:** Fixed generated datasets for reproducibility and exact control of conditional action laws. Freeze dataset size, episode structure, and behavior-policy draws in `results/preregistration.md`. Add online rollouts only after the core results are stable.
+3. Which latent coverage regularizer represents the SIGReg/LeJEPA-style baseline?
+   - **Recommended default:** VICReg-style variance plus covariance terms. They are simple, and their gradients stay informative under near-collapse. SIGReg matches LeWM fidelity, but its test statistic loses gradient as embeddings approach collapse, which is exactly the regime this arm studies. Pick one mechanism; do not combine them.
+4. Endpoint, seeds, equivalence margins, and compute budget?
+   - **Recommended default:** The experiment plan owns these numbers; approve or amend them there in one pass. Budget reference: the decisive core is roughly 70 runs (seven arms times frozen and end-to-end variants times five seeds), dominated by the end-to-end arms.
+5. How does the downstream ladder reconcile with the composite endpoint?
+   - **Recommended default:** The endpoint's planning component uses planning with known dynamics from the start, so the decisive core computes its full endpoint in one pass. Probes come first in analysis order, and learned-model control stays outside the endpoint entirely, entering only after simpler evaluations show a benefit.
+
+### Needed at branch activation
+
+6. Should the first CMI-inspired experiment be evaluation-only, frozen-baseline training, or a derived variational bound?
+   - **Recommended default:** Evaluation-only held-out likelihood difference between separately and properly fitted transition-conditioned and state-only models. Escalate to training variants only if the diagnostic reliably detects permutation and policy shortcuts. Blocks Phase 2.
+7. Should the learned inverse density remain training-only, or also serve as a planner proposal or realizability signal?
+   - **Recommended default:** Establish the training-only representation effect first. Evaluate Direct execution, realizability filtering, and planner-proposal use later as separately labeled interventions. Blocks Phases 1B and 3P.
 8. In what order should contingent branches activate after the decisive core?
    - **Recommended default:** E8 and E11 first, because they carry the mechanism signatures; then Phase 1B, Phase 2, Phase 3, Phase 3P, and Phase 4 in gate order.
 
-Questions about redundant-map dimensionality, paired-operator goal construction, previous-action conditioning, mode-aware Direct rules, actor-sharing controls, support-overlap gating, and literature-review priorities are archived with their recommended defaults; they block their contingent branches, not the decisive core.
+Questions about redundant-map dimensionality, paired-operator goal construction, previous-action conditioning, mode-aware Direct rules, actor-sharing controls, and support-overlap gating are archived with their recommended defaults; review them when their branch opens.
 
 ## Acceptable outcomes including null results
 
