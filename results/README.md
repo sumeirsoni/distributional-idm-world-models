@@ -47,4 +47,4 @@ Bring-up findings:
 5. Probe R2 saturates at 1.000 for all arms because the controllable state is one-dimensional and linearly decodable even from rank-1 latents; the probe component is non-discriminative on this environment family and its standardized values are unstable when baseline SD approaches zero.
 6. Possible H8 no-regression violations on E10 (gauss, mdn, coverage planning deltas consistently negative) require the five-seed extension before any claim.
 
-Next: five-seed extension for gate evaluation; MDN-arm stability investigation (restart selection inside backbone training) if the extension confirms finding 3.
+Next: five-seed extension for gate evaluation; MDN-arm stability investigation (restart selection inside backbone training) if the extension confirms finding 3. After the gate decision, run the pre-declared predictor-conditioned inverse-head ablation (prereg amendment 4): the head conditions on the forward predictor's output instead of the encoded next state, testing whether training the action head in the planner's own input distribution improves latent-planning success - at the cost of entangling encoder and predictor gradients.
