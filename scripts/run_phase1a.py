@@ -50,6 +50,9 @@ ARMS: dict[str, ArmConfig] = {
     "aux_task": ArmConfig(name="aux_task", aux_task=True),
     "coverage": ArmConfig(name="coverage", coverage=True),
     "hybrid": ArmConfig(name="hybrid", idm_kind="mdn", coverage=True, idm_weight=0.3),
+    "mdn_pred": ArmConfig(
+        name="mdn_pred", idm_kind="mdn", idm_conditioning="predictor", idm_weight=0.3
+    ),
 }
 HEAD_BUILDERS = {
     "deterministic": lambda: DeterministicIDM(2 * LATENT_DIM),
@@ -78,6 +81,46 @@ def make_twin_head(kind: str):
     return HEAD_BUILDERS[kind]()
 
 
+@torch.no_grad()
+def attached_predictor_head_metrics(
+    world_model: WorldModel,
+    states: torch.Tensor,
+    actions: torch.Tensor,
+    next_states_clean: torch.Tensor,
+    generator: torch.Generator,
+) -> dict[str, float]:
+    """Evaluate an attached predictor-conditioned head teacher-forced: the
+    head sees [f(s_t), P(f(s_t), a_true)] on held-out data."""
+
+    from distributional_idm.evaluation.metrics import (
+        gaussian_nll,
+        mdn_nll,
+        sample_mdn,
+    )
+
+    world_model.encoder.eval()
+    world_model.predictor.eval()
+    features = world_model.idm_features(actions, states, next_states_clean)
+    outputs = world_model.idm.predict(features)
+    if "logits" in outputs:
+        nll = mdn_nll(outputs["logits"], outputs["means"], outputs["stds"], actions)
+        sampled = sample_mdn(outputs["logits"], outputs["means"], outputs["stds"],
+                             16, generator)
+    else:
+        std = outputs.get("std")
+        if std is None:
+            return {}
+        nll = gaussian_nll(outputs["mean"], std, actions)
+        noise = torch.randn(len(states), 16, generator=generator)
+        sampled = outputs["mean"].unsqueeze(-1) + std.unsqueeze(-1) * noise
+    predicted = states.unsqueeze(-1) + sampled**2
+    target = next_states_clean.unsqueeze(-1)
+    return {
+        "attached_nll": round(nll, 4),
+        "attached_cycle": round(float((predicted - target).abs().mean()), 4),
+    }
+
+
 def evaluate_arm(world_model: WorldModel, splits, seed: int) -> dict[str, float]:
 
     standardizer = state_standardizer(splits["train"])
@@ -95,13 +138,18 @@ def evaluate_arm(world_model: WorldModel, splits, seed: int) -> dict[str, float]
     if world_model.idm is not None:
         kind = world_model.config.idm_kind
         assert kind is not None
-        metrics["attached_nll"] = posthoc_head_nll(
-            world_model.idm, world_model.encoder, te["states"], te["actions"], te["next_clean"]
-        )
-        metrics["attached_cycle"] = posthoc_cycle_validity(
-            world_model.idm, world_model.encoder, te["states"], te["next_clean"],
-            n_samples=16, generator=generator,
-        )
+        if world_model.config.idm_conditioning == "predictor":
+            metrics.update(attached_predictor_head_metrics(
+                world_model, te["states"], te["actions"], te["next_clean"], generator
+            ))
+        else:
+            metrics["attached_nll"] = posthoc_head_nll(
+                world_model.idm, world_model.encoder, te["states"], te["actions"], te["next_clean"]
+            )
+            metrics["attached_cycle"] = posthoc_cycle_validity(
+                world_model.idm, world_model.encoder, te["states"], te["next_clean"],
+                n_samples=16, generator=generator,
+            )
         frozen_twin = train_frozen_head(make_twin_head(kind), world_model.encoder, tr, BACKBONE, seed + 777)
         metrics["frozen_nll"] = posthoc_head_nll(
             frozen_twin, world_model.encoder, te["states"], te["actions"], te["next_clean"]
@@ -145,7 +193,9 @@ def standardize_against_no_idm(arms: dict[str, dict]) -> None:
     downstream.
     """
 
-    baseline = arms["no_idm"]
+    baseline = arms.get("no_idm")
+    if baseline is None:
+        return
     components = {
         "probe_r2_controllable": 1.0,
         "planning_success": 1.0,
@@ -166,14 +216,15 @@ def standardize_against_no_idm(arms: dict[str, dict]) -> None:
         agg["standardized"] = scores
 
 
-def run() -> dict:
+def run(arm_filter: set[str] | None = None) -> dict:
     results: dict = {"seeds": list(SEEDS), "backbone": vars(BACKBONE), "datasets": {}}
+    selected_arms = {k: v for k, v in ARMS.items() if arm_filter is None or k in arm_filter}
     for dataset_name, config in DATASETS.items():
         splits = generate_dataset(config)
         dataset_entry: dict[str, dict] = {"arms": {}}
         feature_target = RandomFeatureTarget(seed=1234)
 
-        for arm_name, arm_config in ARMS.items():
+        for arm_name, arm_config in selected_arms.items():
             per_seed: list[dict[str, float]] = []
             for seed in SEEDS:
                 start_time = time.time()
@@ -225,4 +276,9 @@ def state_standardizer(dataset):
 
 
 if __name__ == "__main__":
-    run()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--arms", type=str, default=None, help="comma-separated arm names")
+    args = parser.parse_args()
+    run(set(args.arms.split(",")) if args.arms else None)

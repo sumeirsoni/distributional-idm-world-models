@@ -61,6 +61,7 @@ class ForwardPredictor(nn.Module):
 class ArmConfig:
     name: str
     idm_kind: str | None = None
+    idm_conditioning: str = "endpoints"
     aux_task: bool = False
     coverage: bool = False
     idm_weight: float = 1.0
@@ -116,17 +117,40 @@ class WorldModel(nn.Module):
         else:
             self.aux_head = None
 
+    def idm_features(
+        self,
+        batch_actions: torch.Tensor,
+        batch_states: torch.Tensor,
+        next_states: torch.Tensor,
+    ) -> torch.Tensor:
+        """Conditioning features for the attached action head.
+
+        endpoints: [f(s_t), f(s_{t+1})] - gradients reach the encoder only.
+        predictor: [f(s_t), P(f(s_t), a_t)] - the head trains on the
+        planner's own input distribution; gradients reach encoder and
+        predictor (prereg amendment 4 ablation).
+        """
+
+        z_t = self.encoder(batch_states)
+        if self.config.idm_conditioning == "predictor":
+            z_next = self.predictor(z_t, batch_actions)
+        elif self.config.idm_conditioning == "endpoints":
+            z_next = self.encoder(next_states)
+        else:
+            raise ValueError(self.config.idm_conditioning)
+        return torch.cat([z_t, z_next], dim=-1)
+
     def idm_loss(
         self,
         batch_actions: torch.Tensor,
         batch_states: torch.Tensor,
         next_states: torch.Tensor,
     ) -> torch.Tensor | None:
-        """Both endpoints encoded online and attached; gradients reach f."""
+        """Both endpoint occurrences encoded online and attached."""
 
         if self.idm is None:
             return None
-        features = torch.cat([self.encoder(batch_states), self.encoder(next_states)], dim=-1)
+        features = self.idm_features(batch_actions, batch_states, next_states)
         if isinstance(self.idm, DeterministicIDM):
             return mse_loss(self.idm(features), batch_actions)
         if isinstance(self.idm, GaussianIDM):

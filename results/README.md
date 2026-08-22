@@ -57,6 +57,16 @@ Findings:
 
 The project stands at: directional support for action-prediction regularization (strongest for unimodal uncertainty), no statistically decisive separation at this scale, and two registered follow-ups (predictor-conditioned head; extended seeds or reduced test family) requiring amendments before running.
 
+## Phase 1A - predictor-conditioned ablation per amendment 4 (2026-08-21)
+
+Ran `mdn_pred`: the MDN action head conditions on `[f(s_t), P(f(s_t), a_t)]` - the forward predictor's own output - instead of the encoded actual next observation, so head gradients reach both encoder and predictor (teacher-forced evaluation on held-out data).
+
+Result: **negative on planning in both environments** - e1_symmetric d=-1.04 (mean 0.178, one diverged seed), e10_control d=-1.64 (mean 0.342), against endpoint-conditioned mdn_idm's +0.70/+0.81. Training the action head in the planner's own input distribution does not close the train-inference gap; it makes representation quality worse. The plausible mechanism: the head's likelihood gradients now act directly on the predictor weights, fighting the world-model objective over the same parameters, whereas endpoint conditioning lets the two losses specialize (predictor learns next-state geometry, head learns action decoding from it).
+
+Consequence for the train-inference-consistency argument: rejected in this form. If planner-proposal quality is the goal, PRISM-style post-hoc heads on frozen latents remain the supported route.
+
+Updated arm ordering on latent-planning success: gauss_idm (+1.29/+2.59) > mdn_idm (+0.70/+0.81) > det_idm (+0.53/+1.16) >> mdn_pred (-1.04/-1.64). No comparison is Holm-significant at n=5; formal gate outcome unchanged.
+
 ## Phase 1A - five-seed gate evaluation pre-amendment-6 (2026-08-21): Gate 2 did not advance
 
 Superseded numerically by the amendment 6 rerun above; retained as the registered history of that decision.
