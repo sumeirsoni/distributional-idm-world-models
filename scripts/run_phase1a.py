@@ -27,7 +27,7 @@ from distributional_idm.models.idm import MDNIDM, DeterministicIDM, GaussianIDM
 from distributional_idm.phase1 import (
     BackboneConfig,
     RandomFeatureTarget,
-    train_backbone,
+    train_backbone_with_restarts,
     train_frozen_head,
 )
 from distributional_idm.training import tensors_from
@@ -177,14 +177,15 @@ def run() -> dict:
             per_seed: list[dict[str, float]] = []
             for seed in SEEDS:
                 start_time = time.time()
-                torch.manual_seed(seed)
-                world_model = WorldModel(arm_config)
-                train_backbone(
-                    world_model,
+                world_model = train_backbone_with_restarts(
+                    arm_config,
                     tensors_from(
                         splits["train"],
                         "state_displacement",
                         state_standardizer(splits["train"]),
+                    ),
+                    tensors_from(
+                        splits["val"], "state_displacement", state_standardizer(splits["train"])
                     ),
                     BACKBONE,
                     seed,

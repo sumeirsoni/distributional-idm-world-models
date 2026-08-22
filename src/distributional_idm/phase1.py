@@ -22,7 +22,51 @@ class BackboneConfig:
     batch_size: int = 1024
     learning_rate: float = 1e-3
     ema_momentum: float = 0.99
+    max_grad_norm: float = 1.0
+    restarts: int = 3
     device: str = "cpu"
+
+
+def train_backbone_with_restarts(
+    arm_config,
+    tensors_train: dict[str, torch.Tensor],
+    tensors_val: dict[str, torch.Tensor],
+    config: BackboneConfig,
+    seed: int,
+    feature_target: RandomFeatureTarget | None = None,
+) -> WorldModel:
+    """Train several backbone initializations and keep the one with the best
+    validation latent-planning success (amendment 6). Validation planning is
+    used because validation world-model loss rewards collapse.
+    """
+
+    from distributional_idm.evaluation.planning import latent_planning_success
+    from distributional_idm.world_model import ArmConfig
+
+    assert isinstance(arm_config, ArmConfig)
+    best_model = None
+    best_score = -float("inf")
+    for restart in range(config.restarts):
+        torch.manual_seed(seed)
+        candidate = WorldModel(arm_config)
+        train_backbone(
+            candidate,
+            tensors_train,
+            config,
+            seed * 1000 + restart,
+            feature_target if arm_config.aux_task else None,
+        )
+        candidate.eval()
+        score = latent_planning_success(
+            candidate.encoder,
+            candidate.predictor,
+            tensors_val["states"],
+            tensors_val["next_clean"],
+        )["planning_success"]
+        if score > best_score:
+            best_score = score
+            best_model = candidate
+    return best_model
 
 
 def train_backbone(
@@ -76,6 +120,10 @@ def train_backbone(
 
             optimizer.zero_grad()
             total.backward()
+            torch.nn.utils.clip_grad_norm_(
+                [p for group in optimizer.param_groups for p in group["params"]],
+                config.max_grad_norm,
+            )
             optimizer.step()
             with torch.no_grad():
                 for online, target in zip(

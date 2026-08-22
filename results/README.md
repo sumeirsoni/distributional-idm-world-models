@@ -32,7 +32,34 @@ Implementation notes:
 - Conditioning for transition-conditioned heads is state-plus-displacement; raw endpoint pairs bury the displacement signal after standardization because states drift ~125 units per episode.
 - Mode metrics take row-wise mode vectors and normalize shapes internally; earlier cross-row broadcasting produced silently wrong values near 0.5 and was fixed with an oracle-mixture check.
 
-## Phase 1A - decisive core, five-seed gate evaluation (2026-08-21): Gate 2 does not advance
+## Phase 1A - stability-treated rerun per amendment 6 (2026-08-21)
+
+After the amendment 5 null, amendment 6 added gradient clipping (max norm 1) and best-of-three joint-training restarts selected by validation latent-planning success, uniformly across all arms; evaluation also sanitizes broken heads to bounded O(1) errors instead of astronomical ones. Full rerun at five seeds.
+
+Standardized planning deltas versus no-IDM (positive = better):
+
+| arm | e1_symmetric | e10_control |
+|---|---|---|
+| det_idm | +0.53 | +1.16 |
+| gauss_idm | +1.29 | +2.59 |
+| mdn_idm | +0.70 | +0.81 |
+| aux_task | +0.68 | -0.06 |
+| coverage | +0.19 | -0.99 |
+| hybrid | -0.40 | -0.87 |
+
+Findings:
+
+1. The amendment 5 conclusion that jointly trained MDN arms destabilize was substantially an optimization artifact: with clipping and restart selection the MDN arm moved from -0.24 to +0.70 standardized planning on E1 and shows no divergence events.
+2. Every action-supervised arm now trends positive on both environments. Heteroscedastic Gaussian is strongest throughout (E10 d=+2.59).
+3. On the one-to-one control, the generic auxiliary control does nothing (-0.06) while every action-supervised arm improves - tentative evidence that action supervision carries something beyond generic or state-retention supervision. Not significant after correction; flagged for the five-seed-plus regime.
+4. Coverage and hybrid still raise effective rank (~12) yet degrade planning on E10: geometric variance without controllable structure remains harmful.
+5. Formal gate outcome under the amendment 6 protocol: still no arm advances - the only Holm-significant comparison is coverage's probe R2 on E10 (0.9993 versus 0.9998), the anticipated negligible-but-significant case with a negative direction.
+
+The project stands at: directional support for action-prediction regularization (strongest for unimodal uncertainty), no statistically decisive separation at this scale, and two registered follow-ups (predictor-conditioned head; extended seeds or reduced test family) requiring amendments before running.
+
+## Phase 1A - five-seed gate evaluation pre-amendment-6 (2026-08-21): Gate 2 did not advance
+
+Superseded numerically by the amendment 6 rerun above; retained as the registered history of that decision.
 
 Analysis in `phase1a/gate_analysis.json` (regenerate with `.venv/bin/python scripts/analyze_phase1a.py`): 48 paired tests (six arms x four endpoints x two datasets), Holm-corrected, advance rule = corrected p < 0.05 AND standardized effect >= +0.2.
 

@@ -121,8 +121,8 @@ def sample_mdn(
     """Sample (n_rows, n_samples) actions from a batch of 1D mixtures."""
 
     logits = torch.nan_to_num(logits, nan=0.0, posinf=0.0, neginf=0.0)
-    means = torch.nan_to_num(means, nan=0.0, posinf=1e3, neginf=-1e3)
-    stds = torch.nan_to_num(stds, nan=1.0, posinf=1e3, neginf=1e-6).clamp_min(1e-6)
+    means = torch.nan_to_num(means, nan=0.0, posinf=0.0, neginf=0.0)
+    stds = torch.nan_to_num(stds, nan=1.0, posinf=5.0, neginf=1e-6).clamp(1e-6, 5.0)
     weights = mdn_component_probabilities(logits)
     n_rows, k = weights.shape
     flat_weights = weights.reshape(-1, k)
@@ -137,7 +137,7 @@ def sample_mdn(
     noise = torch.randn(
         n_rows, n_samples, device=means.device, dtype=means.dtype, generator=generator
     )
-    return comp_means + comp_stds * noise
+    return (comp_means + comp_stds * noise).clamp(-2.0, 2.0)
 
 
 def mode_coverage_from_samples(
