@@ -30,10 +30,14 @@ def mdn_nll(
 ) -> float:
     log_probs = -0.5 * (targets.unsqueeze(-1) - means) ** 2 / stds**2 - stds.log()
     log_mix = torch.logsumexp(F.log_softmax(logits, dim=-1) + log_probs, dim=-1)
-    return float(-log_mix.mean().detach())
+    value = float(-log_mix.mean().detach())
+    if not math.isfinite(value):
+        return 1e6
+    return value
 
 
 def mdn_component_probabilities(logits: torch.Tensor) -> torch.Tensor:
+    logits = torch.nan_to_num(logits, nan=0.0, posinf=0.0, neginf=0.0)
     return F.softmax(logits, dim=-1)
 
 
@@ -116,6 +120,9 @@ def sample_mdn(
 ) -> torch.Tensor:
     """Sample (n_rows, n_samples) actions from a batch of 1D mixtures."""
 
+    logits = torch.nan_to_num(logits, nan=0.0, posinf=0.0, neginf=0.0)
+    means = torch.nan_to_num(means, nan=0.0, posinf=1e3, neginf=-1e3)
+    stds = torch.nan_to_num(stds, nan=1.0, posinf=1e3, neginf=1e-6).clamp_min(1e-6)
     weights = mdn_component_probabilities(logits)
     n_rows, k = weights.shape
     flat_weights = weights.reshape(-1, k)

@@ -52,3 +52,6 @@ Multiplicity: Holm across pre-declared components and cells.
 | Date | Change | Reason |
 |---|---|---|
 | 2026-08-21 | Initial registration | Blocking defaults approved in review session |
+| 2026-08-21 | Amendment 1: gradient routing fixed - action heads read ONLINE representations with both endpoints attached; forward-predictor targets stay detached via EMA target encoder. Fixed update budget for all arms (no validation-based stopping, which rewards collapse). | Registered before first Phase 1A run |
+| 2026-08-21 | Amendment 2: cycle-validity component measured through an identically trained post-hoc MDN head on each arm's frozen latents, because the no-IDM arm has no inverse head to sample. Every arm receives the same post-hoc protocol; arms with attached heads additionally report their own head's metrics. | Spec gap found during implementation; registered before gate decisions |
+| 2026-08-21 | Amendment 3: standardized deltas flip sign for error components so positive always means better; per-seed rows persisted for paired tests; probe R2 noted as saturated on scalar-state environments and therefore non-discriminative there. | Found in bring-up data before any gate decision |
