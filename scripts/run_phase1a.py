@@ -34,7 +34,7 @@ from distributional_idm.training import tensors_from
 from distributional_idm.world_model import LATENT_DIM, ArmConfig, WorldModel
 
 RESULTS_DIR = Path("results/phase1a")
-SEEDS = (0, 1, 2)
+SEEDS = (0, 1, 2, 3, 4)
 BACKBONE = BackboneConfig()
 
 DATASETS: dict[str, QuadraticConfig] = {

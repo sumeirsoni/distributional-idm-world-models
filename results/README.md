@@ -32,19 +32,27 @@ Implementation notes:
 - Conditioning for transition-conditioned heads is state-plus-displacement; raw endpoint pairs bury the displacement signal after standardization because states drift ~125 units per episode.
 - Mode metrics take row-wise mode vectors and normalize shapes internally; earlier cross-row broadcasting produced silently wrong values near 0.5 and was fixed with an oracle-mixture check.
 
-## Phase 1A - decisive-core bring-up (2026-08-21): 3 seeds, no gate decision
+## Phase 1A - decisive core, five-seed gate evaluation (2026-08-21): Gate 2 does not advance
 
-Numbers in `phase1a/results.json` (regenerate with `.venv/bin/python scripts/run_phase1a.py`). Gate decisions wait for the five-seed extension per the staged seed policy; these are bring-up observations.
+Analysis in `phase1a/gate_analysis.json` (regenerate with `.venv/bin/python scripts/analyze_phase1a.py`): 48 paired tests (six arms x four endpoints x two datasets), Holm-corrected, advance rule = corrected p < 0.05 AND standardized effect >= +0.2.
 
-Endpoint components: probe R2, latent-planning success, and post-hoc cycle error from an identically trained MDN head on each arm's frozen latents (prereg amendment 2).
+Outcome: **no arm advances**. No comparison clears both bars; none is significant after correction at n=5.
 
-Bring-up findings:
+Key numbers:
 
-1. Deterministic IDM stabilizes latent planning on E1: planning deltas +0.001/+0.497/+0.893 across seeds versus an unstable no-IDM arm ({1.00/0.50/0.11}). Direction consistent in all three seeds; t=+1.80 at n=3.
-2. The generic auxiliary-task control does not reproduce that gain (deltas -0.36/+0.47/+0.89), so the deterministic-IDM effect is action-content-specific rather than generic supervision.
-3. Jointly trained MDN heads destabilize E1 planning (all three seeds negative, mean delta -0.36) and one E10 seed diverged entirely. This mirrors the Phase 0A basin behavior and currently argues against the project's headline hypothesis at this training recipe.
-4. Coverage regularization does its stated job - effective rank rises from ~1.0 to ~9.2 while every other arm sits near rank 1 - but planning degrades on both environments: variance without controllable structure.
-5. Probe R2 saturates at 1.000 for all arms because the controllable state is one-dimensional and linearly decodable even from rank-1 latents; the probe component is non-discriminative on this environment family and its standardized values are unstable when baseline SD approaches zero.
-6. Possible H8 no-regression violations on E10 (gauss, mdn, coverage planning deltas consistently negative) require the five-seed extension before any claim.
+- e1_symmetric planning: det_idm +0.33 (d=+0.86, p_holm=1.00), aux_task +0.40 (d=+1.05, p_holm=1.00), mdn_idm -0.24 (d=-0.63).
+- e10_control planning: gauss_idm -0.42 (d=-1.23, p_holm=1.00), coverage -0.42 (d=-1.23), hybrid -0.38 (d=-1.11); aux_task +0.31 (d=+0.92).
 
-Next: five-seed extension for gate evaluation; MDN-arm stability investigation (restart selection inside backbone training) if the extension confirms finding 3. After the gate decision, run the pre-declared predictor-conditioned inverse-head ablation (prereg amendment 4): the head conditions on the forward predictor's output instead of the encoded next state, testing whether training the action head in the planner's own input distribution improves latent-planning success - at the cost of entangling encoder and predictor gradients.
+Interpretation under the pre-registered rules:
+
+1. The bring-up impression that deterministic-IDM gains are action-content-specific did not survive: at five seeds the random-feature auxiliary control improves E1 planning by a similar amount (d +1.05 vs +0.86), and neither is significant. The stabilization signal, if real, is attributable to added supervision rather than action content specifically.
+2. The headline hypothesis - explicitly multimodal inverse density shaping representations better than unimodal controls - is unsupported at this scale and recipe. Jointly trained MDN heads trend negative on E1 planning and show instability (one diverged encoder seed).
+3. Distributional and coverage arms show consistent, non-significant planning degradations on the one-to-one control environment (E10), a candidate H8 no-regression violation worth monitoring rather than claiming.
+4. Probe R2 remains saturated at ceiling for all arms (scalar state), contributing no discriminative power.
+
+Per the project brief's acceptable-outcomes clause, a controlled null result is a valid terminal artifact: the environment suite, metric protocol, oracle-validated metrics, and this analysis constitute the deliverable unless follow-ups justify continuing.
+
+Registered follow-ups that could change the picture (each requires its own dated amendment before running):
+
+- Predictor-conditioned inverse-head ablation (amendment 4): tests whether training the head on the planner's own input distribution closes the train-inference gap.
+- MDN-arm stability treatment (restart selection inside backbone training) before re-comparing multimodal arms.

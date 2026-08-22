@@ -41,6 +41,9 @@ results/**
 !results/README.md
 !results/.gitkeep
 !results/preregistration.md
+!results/phase1a/
+results/phase1a/**
+!results/phase1a/gate_analysis.json
 checkpoints/
 wandb/
 mlruns/
