@@ -7,6 +7,8 @@ registered objectives.
 
 from __future__ import annotations
 
+import math
+
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -166,3 +168,34 @@ class MDNIDM(nn.Module):
             "means": means,
             "stds": log_var.exp().sqrt(),
         }
+
+
+class SigmaOnlyGaussianIDM(nn.Module):
+    """Heteroscedastic NLL with the mean pinned to zero: isolates the
+    uncertainty channel of the regularizer (prereg amendment 8)."""
+
+    def __init__(self, input_dim: int, hidden_dim: int = 64, depth: int = 2, variance_floor: float = 1e-4):
+        super().__init__()
+        self.variance_floor = variance_floor
+        self.net = _mlp(input_dim, hidden_dim, 1, depth)
+
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        return self.net(features).squeeze(-1)
+
+    def loss(self, batch: dict[str, torch.Tensor], **_: object) -> torch.Tensor:
+        log_var = self(batch["features"]).clamp_min(math.log(self.variance_floor))
+        return (0.5 * batch["actions"] ** 2 / log_var.exp() + log_var).mean()
+
+    def sample_reparam(self, features: torch.Tensor, n_samples: int, generator=None) -> torch.Tensor:
+        noise = torch.randn(
+            features.shape[0], n_samples, device=features.device, dtype=features.dtype,
+            generator=generator,
+        )
+        std = self(features).clamp_min(math.log(self.variance_floor)).exp().sqrt()
+        return std.unsqueeze(-1) * noise
+
+    @torch.no_grad()
+    def predict(self, features: torch.Tensor) -> dict[str, torch.Tensor]:
+        raw = self(features)
+        std = raw.clamp_min(math.log(self.variance_floor)).exp().sqrt()
+        return {"mean": torch.zeros_like(std), "std": std}

@@ -17,7 +17,12 @@ import torch
 from torch import nn
 
 from distributional_idm.models.flow import FlowIDM
-from distributional_idm.models.idm import MDNIDM, DeterministicIDM, GaussianIDM
+from distributional_idm.models.idm import (
+    MDNIDM,
+    DeterministicIDM,
+    GaussianIDM,
+    SigmaOnlyGaussianIDM,
+)
 from distributional_idm.objectives.losses import (
     gaussian_nll_loss,
     mdn_nll_loss,
@@ -113,6 +118,8 @@ class WorldModel(nn.Module):
             self.idm = MDNIDM(2 * LATENT_DIM, n_components=2)
         elif config.idm_kind == "flow":
             self.idm = FlowIDM(2 * LATENT_DIM, n_bins=24)
+        elif config.idm_kind == "sigma_gaussian":
+            self.idm = SigmaOnlyGaussianIDM(2 * LATENT_DIM)
         elif config.idm_kind is None:
             self.idm = None
         else:
@@ -158,6 +165,8 @@ class WorldModel(nn.Module):
         features = self.idm_features(batch_actions, batch_states, next_states)
         if isinstance(self.idm, DeterministicIDM):
             return mse_loss(self.idm(features), batch_actions)
+        if isinstance(self.idm, SigmaOnlyGaussianIDM):
+            return self.idm.loss({"features": features, "actions": batch_actions})
         if isinstance(self.idm, GaussianIDM):
             mean, raw_log_var = self.idm(features)
             return gaussian_nll_loss(mean, raw_log_var, batch_actions, 1e-4)

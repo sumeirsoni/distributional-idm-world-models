@@ -57,6 +57,16 @@ Findings:
 
 The project stands at: directional support for action-prediction regularization (strongest for unimodal uncertainty), no statistically decisive separation at this scale, and two registered follow-ups (predictor-conditioned head; extended seeds or reduced test family) requiring amendments before running.
 
+## Phase 1A - amendment 8 sigma-channel decomposition (2026-08-21): statistic-channel view rejected
+
+Ran `sigma_only` (Gaussian NLL with mean pinned to zero; only the predicted standard deviation trains) against the existing arms, five seeds.
+
+E1 planning deltas: gauss_idm +1.29, mdn_idm +0.70, det_idm +0.53, **sigma_only -0.06**. Paired gauss-minus-sigma differences positive in all five seeds (+0.44/+0.29/+0.48/+0.26/+0.31).
+
+The pre-registered prediction - that the uncertainty channel alone reproduces most of the Gaussian arm's benefit - is rejected. Combined with mu-only (= det_idm) also being weak, neither channel alone suffices: **the regularization benefit lives in the joint Gaussian NLL**, and notably the two losses converge to nearly identical optima on E1 once the free mean approaches zero, so the divergence must be dynamical (how coupled two-channel optimization shapes gradients during training) rather than a property of either target statistic. The mechanism remains genuinely open after eight amendments; what is now firmly established is the decomposition result itself.
+
+Current full ordering on latent planning (both environments): gauss_idm > mdn_idm > det_idm > no_idm, with every multimodal/alternative construction tried (flow, cycle, predictor-conditioned, imagination-space) at or below baseline.
+
 ## Phase 1A - amendment 7 multimodal-repair factorial (2026-08-21): all three hypotheses rejected
 
 Ran `flow_idm` (24-knot monotone-spline flow head, exact NLL), `mdn_cycle` (MDN plus reparameterized-sample cycle loss through the forward predictor, weight 1.0), and `flow_cycle` (both), five seeds each under the amendment 6 protocol.

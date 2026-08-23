@@ -24,7 +24,12 @@ from distributional_idm.evaluation.planning import (
 )
 from distributional_idm.evaluation.probes import encode_dataset, latent_health, ridge_probe_r2
 from distributional_idm.models.flow import FlowIDM
-from distributional_idm.models.idm import MDNIDM, DeterministicIDM, GaussianIDM
+from distributional_idm.models.idm import (
+    MDNIDM,
+    DeterministicIDM,
+    GaussianIDM,
+    SigmaOnlyGaussianIDM,
+)
 from distributional_idm.phase1 import (
     BackboneConfig,
     RandomFeatureTarget,
@@ -61,11 +66,14 @@ ARMS: dict[str, ArmConfig] = {
     "flow_cycle": ArmConfig(
         name="flow_cycle", idm_kind="flow", cycle=True, idm_weight=0.3, cycle_weight=1.0
     ),
+    "sigma_only": ArmConfig(name="sigma_only", idm_kind="sigma_gaussian", idm_weight=0.3),
 }
 HEAD_BUILDERS = {
     "deterministic": lambda: DeterministicIDM(2 * LATENT_DIM),
     "gaussian": lambda: GaussianIDM(2 * LATENT_DIM),
     "mdn": lambda: MDNIDM(2 * LATENT_DIM, n_components=2),
+    "sigma": lambda: SigmaOnlyGaussianIDM(2 * LATENT_DIM),
+    "sigma_gaussian": lambda: SigmaOnlyGaussianIDM(2 * LATENT_DIM),
     "flow": lambda: FlowIDM(2 * LATENT_DIM, n_bins=24),
 }
 
