@@ -46,6 +46,12 @@ BACKBONE = BackboneConfig()
 DATASETS: dict[str, QuadraticConfig] = {
     "e1_symmetric": QuadraticConfig(name="e1_symmetric", seed=0),
     "e10_control": QuadraticConfig(name="e10_control", nonnegative_actions=True, seed=0),
+    "e2_asymmetric": QuadraticConfig(
+        name="e2_asymmetric", positive_probabilities=(0.7, 0.7), seed=0
+    ),
+    "e1_mixed": QuadraticConfig(
+        name="e1_mixed", forced_positive_magnitudes=(1.0,), seed=0
+    ),
 }
 
 ARMS: dict[str, ArmConfig] = {
@@ -233,10 +239,12 @@ def standardize_against_no_idm(arms: dict[str, dict]) -> None:
         agg["standardized"] = scores
 
 
-def run(arm_filter: set[str] | None = None) -> dict:
+def run(arm_filter: set[str] | None = None, dataset_filter: set[str] | None = None) -> dict:
     results: dict = {"seeds": list(SEEDS), "backbone": vars(BACKBONE), "datasets": {}}
     selected_arms = {k: v for k, v in ARMS.items() if arm_filter is None or k in arm_filter}
     for dataset_name, config in DATASETS.items():
+        if dataset_filter is not None and dataset_name not in dataset_filter:
+            continue
         splits = generate_dataset(config)
         dataset_entry: dict[str, dict] = {"arms": {}}
         feature_target = RandomFeatureTarget(seed=1234)
@@ -297,5 +305,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--arms", type=str, default=None, help="comma-separated arm names")
+    parser.add_argument("--datasets", type=str, default=None, help="comma-separated dataset names")
     args = parser.parse_args()
-    run(set(args.arms.split(",")) if args.arms else None)
+    run(
+        set(args.arms.split(",")) if args.arms else None,
+        set(args.datasets.split(",")) if args.datasets else None,
+    )

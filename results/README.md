@@ -67,6 +67,37 @@ The pre-registered prediction - that the uncertainty channel alone reproduces mo
 
 Current full ordering on latent planning (both environments): gauss_idm > mdn_idm > det_idm > no_idm, with every multimodal/alternative construction tried (flow, cycle, predictor-conditioned, imagination-space) at or below baseline.
 
+## Phase 1A - amendment 10 synthetic-structure artifact tests (2026-08-21)
+
+Prompted by the concern that E1's zero-mean, permanently-symmetric ambiguity drove the head-family conclusions. Ran {no_idm, det_idm, gauss_idm, sigma_only, mdn_idm} on two new datasets, five seeds under amendment 6 protocol.
+
+**e2_asymmetric** (sign probabilities 0.7/0.3; conditional means now carry information):
+
+| arm | planning d vs no-IDM |
+|---|---|
+| det_idm | +1.05 |
+| gauss_idm | +1.23 |
+| sigma_only | +0.82 |
+| mdn_idm | +0.39 |
+
+- H-sym CONFIRMED: det_idm's weakness was substantially the zero-mean artifact (+0.53 on E1 versus +1.05 here).
+- H-pin CONFIRMED: sigma_only flips from -0.06 to +0.82 once a pinned-zero mean is wrong rather than optimal.
+- The Gaussian's advantage over deterministic shrinks from a wide gap to +1.23 versus +1.05: with live means, head families converge.
+
+**e1_mixed** (|a|=1 transitions deterministic, |a|=0.5 transitions bimodal), stratified by displacement bucket:
+
+| arm | ambiguous bucket (Δs=0.25) | deterministic bucket (Δs=1.00) | overall d |
+|---|---|---|---|
+| no_idm | 0.488 | 0.846 | +0.00 |
+| det_idm | 0.629 | 0.909 | +0.44 |
+| gauss_idm | **0.197** | **0.998** | **-0.30** |
+| mdn_idm | 0.295 | 0.858 | -0.39 |
+| sigma_only | 0.296 | 0.819 | -0.47 |
+
+- H-perm REJECTED with an inversion: action-arm gains concentrate on the DETERMINISTIC bucket, not the ambiguous one. Most strikingly, gauss_idm drives ambiguous-bucket planning below the untrained baseline (0.197 versus 0.488) while perfecting the deterministic bucket (0.998).
+
+Interpretation: under partial ambiguity, heteroscedastic NLL training trades ambiguous-region competence for deterministic-region precision - the opposite of what uncertainty-aware framing predicts. Combined with amendment 10(a), the study's earlier headline ordering is confirmed to be an artifact of permanent symmetric ambiguity: real-regime conclusions require environments where informative means and partial ambiguity coexist, which none of E1/E2/E10 provide alone. The e1_mixed generator and stratified metrics are retained as the template for that next environment generation.
+
 ## Phase 1A - amendment 7 multimodal-repair factorial (2026-08-21): all three hypotheses rejected
 
 Ran `flow_idm` (24-knot monotone-spline flow head, exact NLL), `mdn_cycle` (MDN plus reparameterized-sample cycle loss through the forward predictor, weight 1.0), and `flow_cycle` (both), five seeds each under the amendment 6 protocol.

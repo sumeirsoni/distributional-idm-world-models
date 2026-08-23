@@ -45,11 +45,17 @@ def latent_planning_success(
     achieved = chosen**2
     errors = (achieved - desired).abs()
     success = (errors <= tolerance).float().mean()
-    return {
+    result = {
         "planning_success": float(success),
         "mean_displacement_error": float(errors.mean()),
         "chosen_action_abs_mean": float(chosen.abs().mean()),
     }
+    for level in torch.unique(desired.round(decimals=3)):
+        mask = torch.isclose(desired, level, atol=0.01)
+        if int(mask.sum()) >= 20:
+            key = f"planning_success_disp_{float(level):.3f}"
+            result[key] = float((errors[mask] <= tolerance).float().mean())
+    return result
 
 
 @torch.no_grad()

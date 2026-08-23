@@ -21,6 +21,7 @@ class QuadraticConfig:
     name: str = "e1_symmetric"
     magnitudes: tuple[float, ...] = (0.5, 1.0)
     positive_probabilities: tuple[float, ...] | None = None
+    forced_positive_magnitudes: tuple[float, ...] = ()
     observation_noise_std: float = 0.0
     transition_noise_std: float = 0.0
     n_train_episodes: int = 500
@@ -119,7 +120,7 @@ def _generate_split(
         for t in range(config.episode_length):
             mag_idx = int(rng.integers(len(magnitudes)))
             magnitude = magnitudes[mag_idx]
-            if config.nonnegative_actions:
+            if config.nonnegative_actions or magnitude in config.forced_positive_magnitudes:
                 a = magnitude
             else:
                 sign = 1.0 if rng.uniform() < sign_probs[mag_idx] else -1.0
