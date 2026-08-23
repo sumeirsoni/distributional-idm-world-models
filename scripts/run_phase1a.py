@@ -73,6 +73,12 @@ ARMS: dict[str, ArmConfig] = {
         name="flow_cycle", idm_kind="flow", cycle=True, idm_weight=0.3, cycle_weight=1.0
     ),
     "sigma_only": ArmConfig(name="sigma_only", idm_kind="sigma_gaussian", idm_weight=0.3),
+    "gauss_bnnl": ArmConfig(
+        name="gauss_bnnl", idm_kind="gaussian", idm_loss_variant="beta", idm_weight=0.3
+    ),
+    "gauss_clampnll": ArmConfig(
+        name="gauss_clampnll", idm_kind="gaussian", idm_loss_variant="clamped", idm_weight=0.3
+    ),
 }
 HEAD_BUILDERS = {
     "deterministic": lambda: DeterministicIDM(2 * LATENT_DIM),
@@ -288,7 +294,26 @@ def run(arm_filter: set[str] | None = None, dataset_filter: set[str] | None = No
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     output = RESULTS_DIR / "results.json"
-    output.write_text(json.dumps(results, indent=2))
+    if arm_filter is not None or dataset_filter is not None and output.exists():
+        try:
+            existing = json.loads(output.read_text())
+            for dataset_name, entry in results["datasets"].items():
+                target = existing.setdefault("datasets", {}).setdefault(dataset_name, {"arms": {}, "per_seed": []})
+                target["arms"].update(entry["arms"])
+                seen = {
+                    (row["arm"], row["seed"]) for row in target.get("per_seed", [])
+                }
+                target["per_seed"] = [
+                    row for row in target.get("per_seed", [])
+                    if (row["arm"], row["seed"]) not in
+                    {(r["arm"], r["seed"]) for r in entry.get("per_seed", [])}
+                ] + entry.get("per_seed", [])
+                del seen
+        except (json.JSONDecodeError, KeyError):
+            pass
+        output.write_text(json.dumps(existing, indent=2))
+    else:
+        output.write_text(json.dumps(results, indent=2))
     print(f"wrote {output}")
     return results
 

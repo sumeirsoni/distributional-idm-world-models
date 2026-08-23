@@ -25,6 +25,34 @@ def gaussian_nll_loss(
     return 0.5 * ((targets - mean) ** 2 / log_var.exp() + log_var).mean()
 
 
+def beta_nll_loss(
+    mean: torch.Tensor,
+    raw_log_variance: torch.Tensor,
+    targets: torch.Tensor,
+    variance_floor: float,
+    beta: float = 0.5,
+) -> torch.Tensor:
+    """PRISM-faithful beta-NLL: detached sg((sigma^2)^beta) times the
+    per-sample diagonal-Gaussian NLL (Seitzer et al.; PRISM uses beta=0.5)."""
+
+    log_var = raw_log_variance.clamp_min(math.log(variance_floor))
+    per_sample = 0.5 * (targets - mean) ** 2 / log_var.exp() + log_var
+    weight = (log_var.exp().detach()) ** beta
+    return (weight * per_sample).mean()
+
+
+def clamped_gaussian_nll_loss(
+    mean: torch.Tensor,
+    raw_log_variance: torch.Tensor,
+    targets: torch.Tensor,
+    variance_floor: float,
+    clamp_value: float = 10.0,
+) -> torch.Tensor:
+    log_var = raw_log_variance.clamp_min(math.log(variance_floor))
+    per_sample = 0.5 * (targets - mean) ** 2 / log_var.exp() + log_var
+    return per_sample.clamp_max(clamp_value).mean()
+
+
 def fixed_gaussian_nll_loss(
     mean: torch.Tensor,
     targets: torch.Tensor,

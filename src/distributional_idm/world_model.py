@@ -68,6 +68,7 @@ class ArmConfig:
     name: str
     idm_kind: str | None = None
     idm_conditioning: str = "endpoints"
+    idm_loss_variant: str = "nll"
     aux_task: bool = False
     coverage: bool = False
     cycle: bool = False
@@ -113,7 +114,7 @@ class WorldModel(nn.Module):
         if config.idm_kind == "deterministic":
             self.idm: nn.Module | None = DeterministicIDM(2 * LATENT_DIM)
         elif config.idm_kind == "gaussian":
-            self.idm = GaussianIDM(2 * LATENT_DIM)
+            self.idm = GaussianIDM(2 * LATENT_DIM, loss_variant=config.idm_loss_variant)
         elif config.idm_kind == "mdn":
             self.idm = MDNIDM(2 * LATENT_DIM, n_components=2)
         elif config.idm_kind == "flow":
@@ -169,6 +170,14 @@ class WorldModel(nn.Module):
             return self.idm.loss({"features": features, "actions": batch_actions})
         if isinstance(self.idm, GaussianIDM):
             mean, raw_log_var = self.idm(features)
+            if self.idm.loss_variant == "beta":
+                from distributional_idm.objectives.losses import beta_nll_loss
+
+                return beta_nll_loss(mean, raw_log_var, batch_actions, 1e-4)
+            if self.idm.loss_variant == "clamped":
+                from distributional_idm.objectives.losses import clamped_gaussian_nll_loss
+
+                return clamped_gaussian_nll_loss(mean, raw_log_var, batch_actions, 1e-4)
             return gaussian_nll_loss(mean, raw_log_var, batch_actions, 1e-4)
         if isinstance(self.idm, FlowIDM):
             return self.idm.flow_nll_tensor(features, batch_actions).mean()

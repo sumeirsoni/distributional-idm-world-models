@@ -52,9 +52,11 @@ class GaussianIDM(nn.Module):
         hidden_dim: int = 64,
         depth: int = 2,
         variance_floor: float = 1e-4,
+        loss_variant: str = "nll",
     ) -> None:
         super().__init__()
         self.variance_floor = variance_floor
+        self.loss_variant = loss_variant
         self.net = _mlp(input_dim, hidden_dim, 2, depth)
 
     def forward(self, features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

@@ -112,6 +112,14 @@ Cross-cutting finding (corrected): the no-IDM baseline outperforms every NLL-fam
 
 This resolves the mechanism question raised after amendment 10 with direct evidence: gradient-volume imbalance between low-entropy and high-entropy rows drives the competence reallocation. It also sharpens the flow-matching prediction made earlier: because FM regression targets are drawn per row rather than concentrated on consistent rows, it should exhibit less bucket imbalance than NLL heads - now a falsifiable prediction rather than speculation.
 
+## Phase 1A - amendment 11 spike-budget test (2026-08-21): damping confirmed, budget-theft refuted
+
+Two joint-training variants on e1_mixed/e10_control, five seeds: gauss_bnnl (beta-NLL, detached sg(sigma)^0.5 multiplier, PRISM-faithful form) and gauss_clampnll (per-sample NLL clamped at 10 nats).
+
+Ambiguous-bucket planning on e1_mixed: gauss_bnnl 0.490 versus gauss_idm 0.197 - beta-NLL fully eliminates the ambiguous-bucket degradation while retaining most deterministic gains (0.868 versus 0.998). Clamping made it worse (0.132), refuting the budget-stealing variant of the hypothesis.
+
+Refined conclusion: the operative channel is RELATIVE GRADIENT VOLUME between bucket types. Plain NLL lets deterministic-row gradients dominate roughly sigma_amb^2/sigma_det^2-fold once sigma collapses; beta-NLL multiplies each row by detached sqrt(sigma), compressing exactly that asymmetry. This also explains why PRISM can train beta-NLL safely: the reweighting is the point, not incidental. Data incident during this amendment: filtered runs had been overwriting results.json (sigma_only rows, e2_asymmetric, and original e1_mixed baselines temporarily lost); all runs are deterministically reproducible and were regenerated, and the runner now merges instead of overwrites under filters.
+
 Caveat: traces are single-init runs; restart-selected checkpoints could differ, though the interference signature appeared in all three gauss seeds independently.
 
 ## Phase 1A - amendment 7 multimodal-repair factorial (2026-08-21): all three hypotheses rejected
