@@ -98,6 +98,22 @@ Prompted by the concern that E1's zero-mean, permanently-symmetric ambiguity dro
 
 Interpretation: under partial ambiguity, heteroscedastic NLL training trades ambiguous-region competence for deterministic-region precision - the opposite of what uncertainty-aware framing predicts. Combined with amendment 10(a), the study's earlier headline ordering is confirmed to be an artifact of permanent symmetric ambiguity: real-regime conclusions require environments where informative means and partial ambiguity coexist, which none of E1/E2/E10 provide alone. The e1_mixed generator and stratified metrics are retained as the template for that next environment generation.
 
+## Phase 1A - e1_mixed training-dynamics instrumentation (2026-08-21)
+
+Traces in `phase1a/e1_mixed_loss_traces.json` (regenerate with `.venv/bin/python scripts/instrument_mixed.py`): per-epoch validation NLL split by displacement bucket plus ambiguous-bucket planning success, three arms x three seeds, single runs (no restart selection).
+
+Pattern classification against the three pre-stated hypotheses:
+
+1. **gauss: interference confirmed (pattern 1).** Ambiguous-bucket NLL improves early then degrades in two of three seeds (seed1: 0.18 -> 0.69; seed2: -0.04 -> 13.8, a captured live divergence) exactly while deterministic-bucket NLL plummets (-0.2 -> -3.3, sigma approaching the floor). Deterministic rows offer unbounded likelihood gains; ambiguous rows offer bounded ones; the shared encoder reallocates accordingly. Active forgetting, not inability.
+2. **det: saturates at its floor (pattern 2, benign).** Ambiguous-bucket MSE converges to 0.25-0.30 - precisely the irreducible variance of a constant-mean predictor on +-0.5 modes - with no degradation. The head cannot express better, but nothing gets worse.
+3. **mdn: no interference (contradicts pattern expectations).** Ambiguous NLL improves monotonically to the best levels of any arm (-0.27) with zero degradation. Yet its ambiguous-bucket planning still ends below the no-IDM baseline (0.30 versus 0.49), so for MDN a residual slice of pattern 3 remains: density fit improves faster than planner-relevant geometry.
+
+Cross-cutting finding: the no-IDM baseline outperforms EVERY action-supervised arm on ambiguous-bucket planning regardless of family. Any joint action likelihood reshapes shared geometry away from ambiguous rows - families differ only in how much (gauss worst via sigma-channel volume imbalance, mdn least via slower decoder-side dynamics).
+
+This resolves the mechanism question raised after amendment 10 with direct evidence: gradient-volume imbalance between low-entropy and high-entropy rows drives the competence reallocation. It also sharpens the flow-matching prediction made earlier: because FM regression targets are drawn per row rather than concentrated on consistent rows, it should exhibit less bucket imbalance than NLL heads - now a falsifiable prediction rather than speculation.
+
+Caveat: traces are single-init runs; restart-selected checkpoints could differ, though the interference signature appeared in all three gauss seeds independently.
+
 ## Phase 1A - amendment 7 multimodal-repair factorial (2026-08-21): all three hypotheses rejected
 
 Ran `flow_idm` (24-knot monotone-spline flow head, exact NLL), `mdn_cycle` (MDN plus reparameterized-sample cycle loss through the forward predictor, weight 1.0), and `flow_cycle` (both), five seeds each under the amendment 6 protocol.

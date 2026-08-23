@@ -75,6 +75,7 @@ def train_backbone(
     config: BackboneConfig,
     seed: int,
     feature_target: RandomFeatureTarget | None = None,
+    epoch_callback=None,
 ) -> WorldModel:
     torch.manual_seed(seed)
     target_encoder = copy.deepcopy(world_model.encoder)
@@ -90,7 +91,7 @@ def train_backbone(
     n = tensors["states"].shape[0]
     generator = torch.Generator().manual_seed(seed)
 
-    for _ in range(config.epochs):
+    for epoch_index in range(config.epochs):
         permutation = torch.randperm(n, generator=generator)
         for start in range(0, n, config.batch_size):
             index = permutation[start : start + config.batch_size]
@@ -135,6 +136,8 @@ def train_backbone(
                     target.mul_(config.ema_momentum).add_(
                         online.detach(), alpha=1 - config.ema_momentum
                     )
+        if epoch_callback is not None:
+            epoch_callback(world_model, epoch_index)
     return world_model
 
 
