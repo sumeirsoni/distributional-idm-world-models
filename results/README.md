@@ -57,6 +57,31 @@ Findings:
 
 The project stands at: directional support for action-prediction regularization (strongest for unimodal uncertainty), no statistically decisive separation at this scale, and two registered follow-ups (predictor-conditioned head; extended seeds or reduced test family) requiring amendments before running.
 
+## Phase 1A - amendment 7 multimodal-repair factorial (2026-08-21): all three hypotheses rejected
+
+Ran `flow_idm` (24-knot monotone-spline flow head, exact NLL), `mdn_cycle` (MDN plus reparameterized-sample cycle loss through the forward predictor, weight 1.0), and `flow_cycle` (both), five seeds each under the amendment 6 protocol.
+
+Planning deltas versus no-IDM:
+
+| arm | e1_symmetric | e10_control |
+|---|---|---|
+| gauss_idm (reference best) | +1.29 | +2.59 |
+| flow_idm | +0.05 | -0.43 |
+| mdn_cycle | +0.27 | -0.00 |
+| flow_cycle | +0.17 | -0.51 |
+
+Findings:
+
+1. H-A rejected: replacing the MDN with a degeneracy-free spline flow does not restore regularization pressure; flow_idm matches no-IDM within noise.
+2. H-B rejected: the cycle term alone yields marginal movement (+0.27/-0.00).
+3. H-C rejected: flow_cycle is worse than flow_idm on E10 and produced multiple fully diverged encoders (sanitized probes of exactly 0); Newton-carried sampling gradients through a jointly trained predictor are unstable at this scale.
+4. The transmission-line theory stated earlier in this file - "the gap exists; only optimization degeneracy blocks it" - is itself falsified by (1): with degeneracies removed the gap still fails to transmit.
+5. Refined mechanism hypothesis going forward: what matters is not distributional expressivity but whether the head's loss *requires computing an informative statistic of the transition* - the heteroscedastic variance channel demands displacement information even when conditional means saturate, while shape-fitting channels are self-absorbing regardless of parameterization. Call it the statistic-channel view, registered here as the replacement for the absorption/pressure framing.
+
+Cost note: flow_cycle averaged ~900 s per seed-dataset (40-step bisection sampling inside every update); the arm is also the least stable, so it is not recommended for scaling.
+
+Standing conclusion after amendments 4 through 7: heteroscedastic Gaussian NLL is the strongest representation regularizer among eleven tested action-head variants; multimodal density quality and regularization value remain anti-correlated in every construction tried.
+
 ## Phase 1A - predictor-conditioned ablation per amendment 4 (2026-08-21)
 
 Ran `mdn_pred`: the MDN action head conditions on `[f(s_t), P(f(s_t), a_t)]` - the forward predictor's own output - instead of the encoded actual next observation, so head gradients reach both encoder and predictor (teacher-forced evaluation on held-out data).

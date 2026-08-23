@@ -68,20 +68,21 @@ def posthoc_cycle_validity(
 
     encoder.eval()
     features = torch.cat([encoder(states), encoder(next_states_clean)], dim=-1)
-    outputs = head.predict(features)
-    if "logits" in outputs:
-        actions = sample_mdn(outputs["logits"], outputs["means"], outputs["stds"],
-                             n_samples, generator)
-        predicted = states.unsqueeze(-1) + actions**2
-        target = next_states_clean.unsqueeze(-1)
-        return float((predicted - target).abs().mean())
-    mean = outputs["mean"]
-    std = outputs.get("std")
-    if std is not None:
-        noise = torch.randn(len(mean), n_samples, generator=generator)
-        actions = mean.unsqueeze(-1) + std.unsqueeze(-1) * noise
+    if hasattr(head, "sample"):
+        actions = head.sample(features, n_samples, generator)
     else:
-        actions = mean.unsqueeze(-1).expand(-1, n_samples)
+        outputs = head.predict(features)
+        if "logits" in outputs:
+            actions = sample_mdn(outputs["logits"], outputs["means"], outputs["stds"],
+                                 n_samples, generator)
+        else:
+            mean = outputs["mean"]
+            std = outputs.get("std")
+            if std is not None:
+                noise = torch.randn(len(mean), n_samples, generator=generator)
+                actions = mean.unsqueeze(-1) + std.unsqueeze(-1) * noise
+            else:
+                actions = mean.unsqueeze(-1).expand(-1, n_samples)
     predicted = states.unsqueeze(-1) + actions**2
     target = next_states_clean.unsqueeze(-1)
     return float((predicted - target).abs().mean())
@@ -104,6 +105,8 @@ def posthoc_head_nll(
 
     encoder.eval()
     features = torch.cat([encoder(states), encoder(next_states_clean)], dim=-1)
+    if hasattr(head, "nll"):
+        return head.nll(features, actions)
     outputs = head.predict(features)
     if "logits" in outputs:
         return mdn_nll(outputs["logits"], outputs["means"], outputs["stds"], actions)

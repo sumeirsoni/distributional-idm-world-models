@@ -117,6 +117,9 @@ def train_backbone(
             coverage_loss = world_model.coverage_loss(states)
             if coverage_loss is not None:
                 total = total + world_model.config.coverage_weight * coverage_loss
+            cycle_loss = world_model.cycle_loss(states, actions, next_states, z_target)
+            if cycle_loss is not None:
+                total = total + world_model.config.cycle_weight * cycle_loss
 
             optimizer.zero_grad()
             total.backward()

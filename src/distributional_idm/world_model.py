@@ -16,6 +16,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
+from distributional_idm.models.flow import FlowIDM
 from distributional_idm.models.idm import MDNIDM, DeterministicIDM, GaussianIDM
 from distributional_idm.objectives.losses import (
     gaussian_nll_loss,
@@ -64,6 +65,8 @@ class ArmConfig:
     idm_conditioning: str = "endpoints"
     aux_task: bool = False
     coverage: bool = False
+    cycle: bool = False
+    cycle_weight: float = 1.0
     idm_weight: float = 1.0
     coverage_weight: float = 1.0
 
@@ -108,6 +111,8 @@ class WorldModel(nn.Module):
             self.idm = GaussianIDM(2 * LATENT_DIM)
         elif config.idm_kind == "mdn":
             self.idm = MDNIDM(2 * LATENT_DIM, n_components=2)
+        elif config.idm_kind == "flow":
+            self.idm = FlowIDM(2 * LATENT_DIM, n_bins=24)
         elif config.idm_kind is None:
             self.idm = None
         else:
@@ -156,6 +161,8 @@ class WorldModel(nn.Module):
         if isinstance(self.idm, GaussianIDM):
             mean, raw_log_var = self.idm(features)
             return gaussian_nll_loss(mean, raw_log_var, batch_actions, 1e-4)
+        if isinstance(self.idm, FlowIDM):
+            return self.idm.flow_nll_tensor(features, batch_actions).mean()
         logits, means, raw_log_var = self.idm(features)
         return mdn_nll_loss(logits, means, raw_log_var, batch_actions, 1e-3)
 
@@ -174,3 +181,26 @@ class WorldModel(nn.Module):
             return None
         variance_hinge, covariance_penalty = vicreg_coverage(self.encoder(batch_states))
         return variance_hinge + covariance_penalty
+
+    def cycle_loss(
+        self,
+        batch_states: torch.Tensor,
+        batch_actions: torch.Tensor,
+        batch_next_states: torch.Tensor,
+        z_target_next: torch.Tensor,
+        n_samples: int = 4,
+    ) -> torch.Tensor | None:
+        """Reparameterized samples from the head are pushed through the
+        forward predictor and regressed toward the detached target encoding
+        of the actual next state (prereg amendment 7)."""
+
+        if self.idm is None or not self.config.cycle:
+            return None
+        features = self.idm_features(batch_actions, batch_states, batch_next_states)
+        sampled = self.idm.sample_reparam(features, n_samples)
+        z_t = features[:, :LATENT_DIM]
+        total = 0.0
+        for k in range(n_samples):
+            z_hat = self.predictor(z_t, sampled[:, k])
+            total = total + ((z_hat - z_target_next) ** 2).sum(-1).mean()
+        return total / n_samples

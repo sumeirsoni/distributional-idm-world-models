@@ -23,6 +23,7 @@ from distributional_idm.evaluation.planning import (
     posthoc_head_nll,
 )
 from distributional_idm.evaluation.probes import encode_dataset, latent_health, ridge_probe_r2
+from distributional_idm.models.flow import FlowIDM
 from distributional_idm.models.idm import MDNIDM, DeterministicIDM, GaussianIDM
 from distributional_idm.phase1 import (
     BackboneConfig,
@@ -53,11 +54,19 @@ ARMS: dict[str, ArmConfig] = {
     "mdn_pred": ArmConfig(
         name="mdn_pred", idm_kind="mdn", idm_conditioning="predictor", idm_weight=0.3
     ),
+    "flow_idm": ArmConfig(name="flow_idm", idm_kind="flow", idm_weight=0.3),
+    "mdn_cycle": ArmConfig(
+        name="mdn_cycle", idm_kind="mdn", cycle=True, idm_weight=0.3, cycle_weight=1.0
+    ),
+    "flow_cycle": ArmConfig(
+        name="flow_cycle", idm_kind="flow", cycle=True, idm_weight=0.3, cycle_weight=1.0
+    ),
 }
 HEAD_BUILDERS = {
     "deterministic": lambda: DeterministicIDM(2 * LATENT_DIM),
     "gaussian": lambda: GaussianIDM(2 * LATENT_DIM),
     "mdn": lambda: MDNIDM(2 * LATENT_DIM, n_components=2),
+    "flow": lambda: FlowIDM(2 * LATENT_DIM, n_bins=24),
 }
 
 

@@ -8,6 +8,7 @@ registered objectives.
 from __future__ import annotations
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 
@@ -64,6 +65,11 @@ class GaussianIDM(nn.Module):
         mean, raw_log_var = self(batch["features"])
         return gaussian_nll_loss(mean, raw_log_var, batch["actions"], self.variance_floor)
 
+    def sample_reparam(self, features: torch.Tensor, n_samples: int, generator=None) -> torch.Tensor:
+        mean, raw_log_var = self(features)
+        log_var = raw_log_var.clamp_min(torch.log(torch.tensor(self.variance_floor)))
+        return _reparameterized_gaussian_sample(mean, log_var.exp().sqrt(), n_samples, generator)
+
     @torch.no_grad()
     def predict(self, features: torch.Tensor) -> dict[str, torch.Tensor]:
         mean, raw_log_var = self(features)
@@ -91,6 +97,15 @@ class FixedVarianceGaussianIDM(nn.Module):
     @torch.no_grad()
     def predict(self, features: torch.Tensor) -> dict[str, torch.Tensor]:
         return {"mean": self(features), "std": torch.full_like(self(features), self.std)}
+
+
+def _reparameterized_gaussian_sample(
+    mean: torch.Tensor, std: torch.Tensor, n_samples: int, generator=None
+) -> torch.Tensor:
+    noise = torch.randn(
+        mean.shape[0], n_samples, device=mean.device, dtype=mean.dtype, generator=generator
+    )
+    return mean.unsqueeze(-1) + std.unsqueeze(-1) * noise
 
 
 class MDNIDM(nn.Module):
@@ -126,6 +141,21 @@ class MDNIDM(nn.Module):
 
         logits, means, raw_log_var = self(batch["features"])
         return mdn_nll_loss(logits, means, raw_log_var, batch["actions"], self.variance_floor)
+
+    def sample_reparam(self, features: torch.Tensor, n_samples: int, generator=None) -> torch.Tensor:
+        logits, means, raw_log_var = self(features)
+        log_var = raw_log_var.clamp_min(torch.log(torch.tensor(self.variance_floor)))
+        stds = log_var.exp().sqrt()
+        n = features.shape[0]
+        gumbel = F.gumbel_softmax(
+            logits.unsqueeze(1).expand(-1, n_samples, -1), tau=1.0, hard=True, dim=-1
+        )
+        eps = torch.randn(
+            n, n_samples, device=features.device, dtype=features.dtype, generator=generator
+        )
+        comp_mean = (gumbel * means.unsqueeze(1)).sum(-1)
+        comp_std = (gumbel * stds.unsqueeze(1)).sum(-1)
+        return comp_mean + comp_std * eps
 
     @torch.no_grad()
     def predict(self, features: torch.Tensor) -> dict[str, torch.Tensor]:
