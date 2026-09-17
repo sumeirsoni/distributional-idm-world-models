@@ -10,7 +10,7 @@ $$
 q_\phi(a_t\mid z_t,z_{t+1}),
 $$
 
-allowing it to represent multiple compatible actions. The main research question is whether this more faithful inverse objective improves learned representations and downstream prediction, planning, or control—not merely action-density fit.
+allowing it to represent multiple compatible actions. The main research question is whether this more faithful inverse objective improves learned representations and downstream prediction, planning, or control, not merely action-density fit.
 
 The project also distinguishes this proposal from broad latent-distribution regularizers: latent coverage objectives discourage collapse, while distributional inverse dynamics specifies action-related representation content. Hybrid objectives are part of the planned comparison.
 
@@ -22,30 +22,34 @@ Delta-JEPA trains a displacement-conditioned deterministic inverse objective ins
 
 ## Current status
 
-> **Planning/scaffold only; awaiting user review.**
+Phase 0A implementation checks pass, and the Phase 1A experiment suite has been run on the registered synthetic environments. The main result is negative for the original multimodal anti-collapse hypothesis: mixture-density and spline-flow inverse heads fit action distributions but do not reliably improve planner-relevant representations. Heteroscedastic Gaussian NLL is the strongest action-supervised arm in the main rerun, but no arm passes the preregistered gate after correction.
 
-No substantive experiments, datasets, dependencies, or training pipelines have been implemented. The INTACT, PRISM, Delta-JEPA, and LeJEPA/SIGReg descriptions are verified against primary sources. LeWorldModel and PLDM were identified as further adjacent work and require full-text review.
+Read [`docs/RESULTS_WRITEUP.md`](docs/RESULTS_WRITEUP.md) for the evidence, mechanism analysis, and limits. Read [`results/README.md`](results/README.md) for the chronological experiment record.
 
-## Planned first step
+## Completed experiment program
 
-Begin with falsification-first synthetic environments:
+The falsification-first suite tested:
 
-- quadratic ambiguity: $s_{t+1}=s_t+a_t^2$;
-- redundant linear action maps with a nontrivial null space;
-- controlled saturation, partial-observability, history, exogenous-state, and behavior-policy variants.
+- symmetric quadratic ambiguity: $s_{t+1}=s_t+a_t^2$;
+- asymmetric action signs with probabilities 0.7 and 0.3;
+- partial ambiguity, where one displacement bucket is deterministic and another remains bimodal;
+- one-to-one nonnegative control.
 
-Simple discretized, fixed scalar-variance Gaussian, heteroscedastic Gaussian, and mixture-density models should first pass explicit transition-ambiguity gates and then demonstrate a transition-only representation benefit. Only after that gate will the plan add an INTACT-style shared local/goal Gaussian control, actor-sharing and gradient-routing ablations, support-overlap diagnostics, and actor-disabled planning before considering higher-capacity densities, larger environments, or PRISM-style downstream planner guidance.
+Phase 0A checked deterministic, fixed-variance Gaussian, heteroscedastic Gaussian, and mixture-density heads. Phase 1A then compared end-to-end objectives, multimodal-head repairs, predictor-conditioned decoding, synthetic ambiguity variants, and NLL gradient reweighting.
 
-The experiment plan defines a decisive core: environments E1 and E10, seven objective arms with frozen-head controls where meaningful, three seeds in bring-up extended to five before gate decisions, all governed by a pre-registered primary endpoint. All remaining phases are contingent branches. A null representation result is an acceptable terminal outcome with its own deliverable: the environment suite, the metric protocol, and the controlled analysis.
+The decisive core used environments E1 and E10, seven objective arms with frozen-head controls where meaningful, and five seeds for gate decisions. Later registered amendments tested multimodal-head repairs, asymmetric and partially ambiguous data, and NLL gradient reweighting. The controlled null result is the current terminal artifact for this experiment program.
 
 ## Repository guide
 
+- [`docs/RESULTS_WRITEUP.md`](docs/RESULTS_WRITEUP.md): concise interpretation of the completed experiments and their limits.
 - [`PROJECT_BRIEF.md`](PROJECT_BRIEF.md): self-contained research handoff and scope.
 - [`docs/RESEARCH_QUESTIONS.md`](docs/RESEARCH_QUESTIONS.md): hypotheses, falsifiers, novelty boundary, and unresolved questions.
 - [`docs/EXPERIMENT_PLAN.md`](docs/EXPERIMENT_PLAN.md): pre-registration protocol, decisive-core experiment, contingent branches, decision gates, and reporting requirements.
 - [`docs/ARCHIVE.md`](docs/ARCHIVE.md): deferred environments, baselines, metrics, and phase designs, with verbatim text preserved at commit `8498e45`.
-- `src/distributional_idm/`: placeholder package structure only.
-- `tests/`, `configs/`, `scripts/`, `results/`: placeholders for future approved work.
+- `src/distributional_idm/`: environment, model, objective, training, and evaluation code.
+- `tests/`: implementation and amendment regression tests.
+- `scripts/`: experiment runners and analysis scripts.
+- `results/`: preregistration, committed gate analysis, and a guide to generated outputs.
 
 ## Non-goals at this stage
 
